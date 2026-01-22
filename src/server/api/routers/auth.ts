@@ -8,7 +8,9 @@ export const authRouter = createTRPCRouter({
   signIn: publicProcedure
     .input(z.object({ email: z.string().email(), password: z.string() }))
     .mutation(async ({ input, ctx }) => {
+      console.log("we are here", input)
       try {
+
         // Use better-auth's server API for sign in
         const result = await auth.api.signInEmail({
           body: {
@@ -17,13 +19,14 @@ export const authRouter = createTRPCRouter({
           },
           headers: ctx.headers,
         });
-
+        console.log("result", result)
         // Return success - cookies are handled by better-auth via the API route
         return {
           success: true,
-          user: result.user,
+          // user: result.user,
         };
       } catch (error) {
+        console.log(error)
         throw new TRPCError({
           code: "UNAUTHORIZED",
           message:
