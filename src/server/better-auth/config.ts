@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import { username } from "better-auth/plugins";
 
 import { db } from "~/server/db";
 
@@ -10,6 +11,26 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
+  user: {
+    additionalFields: {
+      role: {
+        type: "string",
+        required: false,
+        defaultValue: "CUSTOMER",
+      },
+      phone: {
+        type: "string",
+        required: false,
+      },
+    },
+  },
+  disablePaths: ["/is-username-available"],
+  plugins: [
+    username({
+      minUsernameLength: 5,
+      maxUsernameLength: 100
+    })
+  ],
   socialProviders: {
   },
 });
