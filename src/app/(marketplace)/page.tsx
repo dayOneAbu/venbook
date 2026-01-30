@@ -34,7 +34,7 @@ export default function Home() {
       <section className="container mx-auto px-4">
         <div className="flex flex-col items-center gap-4 text-center">
           <h2 className="text-3xl font-bold tracking-tight">Handpicked Venues</h2>
-          <p className="text-muted-foreground max-w-[600px]">
+          <p className="text-muted-foreground max-w-150">
             Explore top-rated ballrooms, conference halls, and meeting spaces in Addis Ababa.
           </p>
         </div>

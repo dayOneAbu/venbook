@@ -20,7 +20,7 @@ export default function UsersPage() {
   const deleteUser = api.user.delete.useMutation({
     onSuccess: () => {
       toast.success("User deleted");
-      refetch();
+      void refetch();
     },
   });
 
@@ -61,9 +61,7 @@ export default function UsersPage() {
                   <TableCell className="font-medium">{user.name}</TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>
-                    {/* @ts-ignore - role exists */}
                     <Badge variant={user.role === "CUSTOMER" ? "outline" : "default"}>
-                      {/* @ts-ignore - role exists */}
                       {user.role}
                     </Badge>
                   </TableCell>

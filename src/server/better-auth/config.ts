@@ -22,6 +22,10 @@ export const auth = betterAuth({
         type: "string",
         required: false,
       },
+      hotelId: {
+        type: "string",
+        required: false,
+      },
     },
   },
   disablePaths: ["/is-username-available"],

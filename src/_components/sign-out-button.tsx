@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
-import { api } from "~/trpc/react";
 import { Button } from "~/_components/ui/button";
 
 export function SignOutButton() {
@@ -13,8 +12,8 @@ export function SignOutButton() {
       await fetch("/api/auth/sign-out", {
         method: "POST",
       });
-      router.push("/auth/sign-in");
       router.refresh();
+      router.push("/");
     } catch (error) {
       console.error("Sign out failed", error);
     }

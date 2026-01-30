@@ -12,14 +12,11 @@ export default function ProfilePage() {
   const { data: session, isPending } = authClient.useSession();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
 
   useEffect(() => {
     if (session?.user) {
-      setName(session.user.name || "");
-      setEmail(session.user.email || "");
-      // @ts-ignore - phone is added in schema/config
-      setPhone(session.user.phone || "");
+      setName(session.user.name ?? "");
+      setEmail(session.user.email ?? "");
     }
   }, [session]);
 
@@ -57,15 +54,6 @@ export default function ProfilePage() {
                 value={email} 
                 disabled 
                 className="bg-muted"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="phone">Phone Number</Label>
-            <Input 
-                id="phone" 
-                value={phone} 
-                onChange={(e) => setPhone(e.target.value)} 
-                placeholder="+251 ..."
             />
           </div>
           <div className="pt-4">
