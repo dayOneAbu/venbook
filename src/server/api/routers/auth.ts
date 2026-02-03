@@ -23,7 +23,7 @@ export const authRouter = createTRPCRouter({
         // Return success - cookies are handled by better-auth via the API route
         return {
           success: true,
-          // user: result.user,
+          user: result.user,
         };
       } catch (error) {
         console.log(error)
@@ -40,6 +40,7 @@ export const authRouter = createTRPCRouter({
         email: z.string().email(),
         password: z.string().min(8),
         name: z.string().min(1),
+        role: z.enum(["CUSTOMER", "HOTEL_ADMIN"]).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -50,6 +51,7 @@ export const authRouter = createTRPCRouter({
             email: input.email,
             password: input.password,
             name: input.name,
+            role: input.role,
           },
           headers: ctx.headers,
         });

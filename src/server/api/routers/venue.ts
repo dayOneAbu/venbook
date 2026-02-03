@@ -1,8 +1,86 @@
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
+import { createTRPCRouter, protectedProcedure, publicProcedure } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 
 export const venueRouter = createTRPCRouter({
+    publicList: publicProcedure.query(async ({ ctx }) => {
+        return ctx.db.venue.findMany({
+            where: {
+                isActive: true,
+                hotel: {
+                    isVerified: true,
+                    isDeactivated: false,
+                },
+            },
+            orderBy: { createdAt: "desc" },
+            select: {
+                id: true,
+                slug: true,
+                name: true,
+                description: true,
+                basePrice: true,
+                capacityBanquet: true,
+                capacityTheater: true,
+                capacityReception: true,
+                capacityUshape: true,
+                images: {
+                    select: { url: true },
+                    take: 1,
+                },
+                hotel: {
+                    select: {
+                        name: true,
+                        city: true,
+                        country: true,
+                    },
+                },
+            },
+        });
+    }),
+    publicBySlug: publicProcedure
+        .input(z.object({ slug: z.string() }))
+        .query(async ({ ctx, input }) => {
+            return ctx.db.venue.findFirst({
+                where: {
+                    slug: input.slug,
+                    isActive: true,
+                    hotel: {
+                        isVerified: true,
+                        isDeactivated: false,
+                    },
+                },
+                select: {
+                    id: true,
+                    slug: true,
+                    name: true,
+                    description: true,
+                    basePrice: true,
+                    capacityBanquet: true,
+                    capacityTheater: true,
+                    capacityReception: true,
+                    capacityUshape: true,
+                    images: {
+                        select: { url: true },
+                    },
+                    amenities: {
+                        select: {
+                            amenity: { select: { name: true } },
+                        },
+                    },
+                    hotel: {
+                        select: {
+                            name: true,
+                            address: true,
+                            city: true,
+                            country: true,
+                            phone: true,
+                            email: true,
+                            website: true,
+                        },
+                    },
+                },
+            });
+        }),
     getAll: protectedProcedure.query(async ({ ctx }) => {
         const hotelId = ctx.session.user.hotelId;
         if (!hotelId) return [];
@@ -48,6 +126,7 @@ export const venueRouter = createTRPCRouter({
                 data: {
                     ...input,
                     hotelId,
+                    slug: input.name.toLowerCase().replace(/\s+/g, "-") + "-" + Math.random().toString(36).substring(2, 7),
                 }
             });
         }),

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -36,6 +36,8 @@ export function SignUpForm({
   ...props
 }: React.ComponentProps<"div">) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
   const {
     register,
     handleSubmit,
@@ -45,9 +47,8 @@ export function SignUpForm({
   });
 
   const signUp = api.auth.signUp.useMutation({
-    onSuccess: async (_, variables) => {
+    onSuccess: async (data, variables) => {
       // After successful tRPC call, set cookies via better-auth API route
-      // This ensures cookies are properly set for session management
       try {
         await fetch("/api/auth/sign-up/email", {
           method: "POST",
@@ -55,15 +56,34 @@ export function SignUpForm({
           body: JSON.stringify(variables),
         });
       } catch {
-        // Cookie setting is best-effort, session should still work
+        // Cookie setting is best-effort
       }
-      router.push("/");
+
+      // Handle Redirection
+      if (data.user && !data.user.isOnboarded) {
+        const redirectPath = searchParams.get("redirect");
+        if (redirectPath && !redirectPath.startsWith("/onboard")) {
+          router.push(`/onboard?role=customer&next=${encodeURIComponent(redirectPath)}`);
+        } else {
+          router.push("/onboard?role=customer");
+        }
+      } else if (searchParams.get("redirect")) {
+        router.push(searchParams.get("redirect")!);
+      } else {
+        router.push("/admin");
+      }
+
       router.refresh();
     },
   });
 
   const onSubmit = async (data: SignUpFormData) => {
-    signUp.mutate(data);
+    signUp.mutate({
+      name: data.name,
+      email: data.email,
+      password: data.password,
+      role: "CUSTOMER",
+    });
   };
 
   return (
@@ -79,10 +99,23 @@ export function SignUpForm({
           <form onSubmit={handleSubmit(onSubmit)}>
             <FieldGroup>
               {signUp.error && (
+                <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                  {signUp.error.message}
+                </div>
+              )}
+              {signUp.error && (
                 <Field>
                   <FieldError>{signUp.error.message}</FieldError>
                 </Field>
               )}
+              <Field>
+                <div className="rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
+                  You’re creating a customer account to book venues.{" "}
+                  <a href="/auth/sign-up?role=owner" className="underline">
+                    Need a hotel account instead?
+                  </a>
+                </div>
+              </Field>
               <Field data-invalid={!!errors.name}>
                 <FieldLabel htmlFor="name">Name</FieldLabel>
                 <Input

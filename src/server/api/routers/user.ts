@@ -3,15 +3,39 @@ import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 
 export const userRouter = createTRPCRouter({
     getAll: protectedProcedure.query(async ({ ctx }) => {
-        if (!ctx.session.user.hotelId) {
+        const hotelId = ctx.session.user.hotelId;
+        if (!hotelId) {
             return [];
         }
 
         return ctx.db.user.findMany({
             where: {
-                hotelId: ctx.session.user.hotelId,
+                hotelId: hotelId,
             },
             orderBy: { createdAt: "desc" },
+        });
+    }),
+
+    getMe: protectedProcedure.query(async ({ ctx }) => {
+        return ctx.db.user.findUnique({
+            where: { id: ctx.session.user.id },
+        });
+    }),
+
+    getAssignableUsers: protectedProcedure.query(async ({ ctx }) => {
+        const hotelId = ctx.session.user.hotelId;
+        if (!hotelId) {
+            return [];
+        }
+
+        return ctx.db.user.findMany({
+            where: {
+                hotelId: hotelId,
+                role: {
+                    in: ["HOTEL_ADMIN", "SALES", "OPERATIONS", "FINANCE"],
+                },
+            },
+            orderBy: { name: "asc" },
         });
     }),
 
@@ -36,13 +60,17 @@ export const userRouter = createTRPCRouter({
                 name: z.string().min(1),
                 email: z.string().email(),
                 role: z.enum(["HOTEL_ADMIN", "SALES", "OPERATIONS", "FINANCE"]),
-                password: z.string().min(8).optional(), // Optional for now, maybe invite flow later
             })
         )
         .mutation(async ({ ctx, input }) => {
             const hotelId = ctx.session.user.hotelId;
             if (!hotelId) {
                 throw new Error("You must belong to a hotel to add staff.");
+            }
+
+            // RBAC check: Only HOTEL_ADMIN can add staff
+            if (ctx.session.user.role !== "HOTEL_ADMIN") {
+                throw new Error("Only admins can add staff members.");
             }
 
             // Check if user already exists
@@ -53,11 +81,6 @@ export const userRouter = createTRPCRouter({
             if (existingUser) {
                 throw new Error("User with this email already exists.");
             }
-
-            // In a real app, you might create an auth account here using better-auth api
-            // For now, we just create the user record in our DB as per current schema/flow
-            // The user would likely need to "sign up" or "accept invite" to set password/auth details effectively
-            // Or we treat this as pre-seeding the user.
 
             return ctx.db.user.create({
                 data: {
@@ -83,6 +106,11 @@ export const userRouter = createTRPCRouter({
                 throw new Error("Unauthorized");
             }
 
+            // RBAC check: Only HOTEL_ADMIN can update other users
+            if (ctx.session.user.role !== "HOTEL_ADMIN" && ctx.session.user.id !== input.id) {
+                throw new Error("Only admins can update other staff members.");
+            }
+
             // Ensure user belongs to same hotel
             const userToUpdate = await ctx.db.user.findFirst({
                 where: {
@@ -104,12 +132,47 @@ export const userRouter = createTRPCRouter({
             });
         }),
 
+    updateProfile: protectedProcedure
+        .input(
+            z.object({
+                name: z.string().min(1).optional(),
+                phone: z.string().optional(),
+                image: z.string().url().optional(),
+            })
+        )
+        .mutation(async ({ ctx, input }) => {
+            return ctx.db.user.update({
+                where: { id: ctx.session.user.id },
+                data: {
+                    name: input.name,
+                    phone: input.phone,
+                    image: input.image,
+                },
+            });
+        }),
+
+    updateOnboardingStatus: protectedProcedure
+        .input(z.object({ isOnboarded: z.boolean() }))
+        .mutation(async ({ ctx, input }) => {
+            return ctx.db.user.update({
+                where: { id: ctx.session.user.id },
+                data: {
+                    isOnboarded: input.isOnboarded,
+                },
+            });
+        }),
+
     delete: protectedProcedure
         .input(z.object({ id: z.string() }))
         .mutation(async ({ ctx, input }) => {
             const hotelId = ctx.session.user.hotelId;
             if (!hotelId) {
                 throw new Error("Unauthorized");
+            }
+
+            // RBAC check: Only HOTEL_ADMIN can delete users
+            if (ctx.session.user.role !== "HOTEL_ADMIN") {
+                throw new Error("Only admins can delete staff members.");
             }
 
             if (input.id === ctx.session.user.id) {

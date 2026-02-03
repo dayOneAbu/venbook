@@ -26,6 +26,11 @@ export const auth = betterAuth({
         type: "string",
         required: false,
       },
+      isOnboarded: {
+        type: "boolean",
+        required: false,
+        defaultValue: false,
+      },
     },
   },
   disablePaths: ["/is-username-available"],

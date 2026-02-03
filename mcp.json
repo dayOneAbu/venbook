@@ -1,5 +1,11 @@
 {
   "better-auth": {
     "url": "https://mcp.inkeep.com/better-auth/mcp"
+  },
+  "reactbits": {
+    "command": "npx",
+    "args": [
+      "reactbits-dev-mcp-server"
+    ]
   }
 }

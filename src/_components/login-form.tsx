@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -35,6 +35,9 @@ export function LoginForm({
   ...props
 }: React.ComponentProps<"div">) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectPath = searchParams.get("redirect");
+
   const {
     register,
     handleSubmit,
@@ -44,9 +47,8 @@ export function LoginForm({
   });
 
   const signIn = api.auth.signIn.useMutation({
-    onSuccess: async (_, variables) => {
+    onSuccess: async (data, variables) => {
       // After successful tRPC call, set cookies via better-auth API route
-      // This ensures cookies are properly set for session management
       try {
         await fetch("/api/auth/sign-in/email", {
           method: "POST",
@@ -54,9 +56,22 @@ export function LoginForm({
           body: JSON.stringify(variables),
         });
       } catch {
-        // Cookie setting is best-effort, session should still work
+        // Cookie setting is best-effort
       }
-      router.push("/");
+      
+      // Handle Redirection
+      if (data.user && !data.user.isOnboarded) {
+        if (redirectPath && !redirectPath.startsWith("/onboard")) {
+          router.push(`/onboard?role=customer&next=${encodeURIComponent(redirectPath)}`);
+        } else {
+          router.push("/onboard?role=customer");
+        }
+      } else if (redirectPath) {
+        router.push(redirectPath);
+      } else {
+        router.push("/admin");
+      }
+      
       router.refresh();
     },
   });
@@ -77,6 +92,11 @@ export function LoginForm({
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)}>
             <FieldGroup>
+              {signIn.error && (
+                <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                  {signIn.error.message}
+                </div>
+              )}
               {signIn.error && (
               <Field>
                   <FieldError>{signIn.error.message}</FieldError>

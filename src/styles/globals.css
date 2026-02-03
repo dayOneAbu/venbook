@@ -4,11 +4,49 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif,
+  --font-sans:
+    var(--font-inter), ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+
+  /* Custom animations */
+  --animate-fade-in: fade-in 0.3s ease-out;
+  --animate-slide-up: slide-up 0.4s ease-out;
+  --animate-scale-in: scale-in 0.2s ease-out;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
 }
 
 @theme inline {
+  /* Radius scale - Ventixe uses large rounded corners (12px base) */
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -16,6 +54,8 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+
+  /* Semantic color mappings */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -47,75 +87,106 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Ventixe Extended Colors */
+  --color-violet-50: oklch(0.97 0.02 300);
+  --color-violet-100: oklch(0.94 0.04 300);
+  --color-violet-200: oklch(0.89 0.08 300);
+  --color-violet-300: oklch(0.81 0.12 300);
+  --color-violet-400: oklch(0.72 0.16 300);
+  --color-violet-500: oklch(0.65 0.19 300);
+  --color-violet-600: oklch(0.58 0.18 300);
+  --color-violet-700: oklch(0.5 0.15 300);
+  --color-violet-800: oklch(0.42 0.12 300);
+  --color-violet-900: oklch(0.35 0.1 300);
+
+  --color-pink-50: oklch(0.97 0.02 350);
+  --color-pink-100: oklch(0.94 0.04 350);
+  --color-pink-200: oklch(0.89 0.08 350);
+  --color-pink-300: oklch(0.8 0.12 350);
+  --color-pink-400: oklch(0.71 0.16 350);
+  --color-pink-500: oklch(0.65 0.2 350);
+  --color-pink-600: oklch(0.58 0.18 350);
+  --color-pink-700: oklch(0.5 0.15 350);
+  --color-pink-800: oklch(0.42 0.12 350);
+  --color-pink-900: oklch(0.35 0.1 350);
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  /* Base radius - 0.75rem = 12px for that soft Ventixe look */
+  --radius: 0.75rem;
+
+  /* Ventixe Light Theme */
+  --background: oklch(0.97 0.01 300); /* Soft lavender tint */
+  --foreground: oklch(0.22 0.02 280); /* Dark slate purple */
+  --card: oklch(1 0 0); /* Pure white cards */
+  --card-foreground: oklch(0.22 0.02 280);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --popover-foreground: oklch(0.22 0.02 280);
+  --primary: oklch(0.65 0.19 300); /* Vibrant violet */
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.94 0.04 300); /* Light purple */
+  --secondary-foreground: oklch(0.58 0.18 300); /* Darker violet */
+  --muted: oklch(0.96 0.01 300); /* Subtle lavender gray */
+  --muted-foreground: oklch(0.55 0.03 280); /* Muted purple-gray */
+  --accent: oklch(0.65 0.2 350); /* Hot pink */
+  --accent-foreground: oklch(1 0 0);
+  --destructive: oklch(0.57 0.19 25);
+  --border: oklch(0.9 0.02 300); /* Lavender border */
+  --input: oklch(0.9 0.02 300);
+  --ring: oklch(0.65 0.19 300); /* Violet ring */
+
+  /* Chart colors - matching the financial dashboard */
+  --chart-1: oklch(0.65 0.19 300); /* Violet */
+  --chart-2: oklch(0.65 0.2 350); /* Pink */
+  --chart-3: oklch(0.55 0.15 250); /* Blue */
+  --chart-4: oklch(0.65 0.15 150); /* Emerald */
+  --chart-5: oklch(0.75 0.15 80); /* Amber */
+
+  /* Sidebar specific - matches the ventixe sidebar */
+  --sidebar: oklch(0.97 0.01 300);
+  --sidebar-foreground: oklch(0.4 0.03 280);
+  --sidebar-primary: oklch(0.65 0.19 300);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.94 0.04 300);
+  --sidebar-accent-foreground: oklch(0.58 0.18 300);
+  --sidebar-border: oklch(0.9 0.02 300);
+  --sidebar-ring: oklch(0.65 0.19 300);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* Ventixe Dark Theme */
+  --background: oklch(0.15 0.02 280);
+  --foreground: oklch(0.97 0.01 300);
+  --card: oklch(0.2 0.03 280);
+  --card-foreground: oklch(0.97 0.01 300);
+  --popover: oklch(0.2 0.03 280);
+  --popover-foreground: oklch(0.97 0.01 300);
+  --primary: oklch(0.7 0.19 300);
+  --primary-foreground: oklch(0.15 0.02 280);
+  --secondary: oklch(0.25 0.05 300);
+  --secondary-foreground: oklch(0.97 0.01 300);
+  --muted: oklch(0.25 0.03 280);
+  --muted-foreground: oklch(0.65 0.05 300);
+  --accent: oklch(0.7 0.2 350);
+  --accent-foreground: oklch(0.15 0.02 280);
+  --destructive: oklch(0.7 0.19 25);
+  --border: oklch(0.25 0.03 300);
+  --input: oklch(0.25 0.03 300);
+  --ring: oklch(0.7 0.19 300);
+  --chart-1: oklch(0.7 0.19 300);
+  --chart-2: oklch(0.7 0.2 350);
+  --chart-3: oklch(0.6 0.15 250);
+  --chart-4: oklch(0.7 0.15 150);
+  --chart-5: oklch(0.8 0.15 80);
+  --sidebar: oklch(0.2 0.03 280);
+  --sidebar-foreground: oklch(0.97 0.01 300);
+  --sidebar-primary: oklch(0.7 0.19 300);
+  --sidebar-primary-foreground: oklch(0.15 0.02 280);
+  --sidebar-accent: oklch(0.25 0.05 300);
+  --sidebar-accent-foreground: oklch(0.97 0.01 300);
+  --sidebar-border: oklch(0.25 0.03 300);
+  --sidebar-ring: oklch(0.7 0.19 300);
 }
 
 @layer base {
@@ -123,6 +194,96 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
+  }
+}
+
+/* Ventixe Custom Utilities */
+@layer utilities {
+  .gradient-primary {
+    background-image: linear-gradient(
+      135deg,
+      oklch(0.65 0.19 300) 0%,
+      oklch(0.65 0.2 350) 100%
+    );
+  }
+
+  .gradient-violet {
+    background-image: linear-gradient(
+      135deg,
+      oklch(0.72 0.16 300) 0%,
+      oklch(0.65 0.19 300) 50%,
+      oklch(0.58 0.18 300) 100%
+    );
+  }
+
+  .gradient-subtle {
+    background-image: linear-gradient(
+      180deg,
+      oklch(1 0 0) 0%,
+      oklch(0.97 0.01 300) 100%
+    );
+  }
+
+  .text-gradient {
+    background-image: linear-gradient(
+      135deg,
+      oklch(0.58 0.18 300) 0%,
+      oklch(0.65 0.2 350) 100%
+    );
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .shadow-card {
+    box-shadow: 0 4px 20px -2px oklch(0.65 0.19 300 / 0.08);
+  }
+
+  .shadow-elevated {
+    box-shadow:
+      0 8px 30px -4px oklch(0.65 0.19 300 / 0.12),
+      0 4px 12px -2px oklch(0.65 0.19 300 / 0.06);
+  }
+
+  .hover-lift {
+    transition:
+      transform 0.3s ease,
+      box-shadow 0.3s ease;
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px -8px oklch(0.65 0.19 300 / 0.15);
+  }
+
+  .glass {
+    background: oklch(1 0 0 / 0.7);
+    backdrop-filter: blur(12px);
+    border: 1px solid oklch(1 0 0 / 0.5);
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-out;
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.4s ease-out;
+  }
+
+  .animate-scale-in {
+    animation: scale-in 0.2s ease-out;
+  }
+
+  /* Progress bar utilities */
+  .progress-gradient {
+    background-image: linear-gradient(
+      90deg,
+      oklch(0.65 0.19 300) 0%,
+      oklch(0.65 0.2 350) 100%
+    );
   }
 }

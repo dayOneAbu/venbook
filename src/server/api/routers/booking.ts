@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
-import { BookingStatus } from "../../../../generated/prisma";
+import { BookingStatus, BookingSource, TaxStrategy } from "~/generated/prisma";
 
 
 export const bookingRouter = createTRPCRouter({
@@ -32,6 +32,8 @@ export const bookingRouter = createTRPCRouter({
                 startTime: z.date(),
                 endTime: z.date(),
                 guestCount: z.number().int().min(1),
+                guaranteedPax: z.number().int().optional(),
+                layoutType: z.string().optional(),
 
                 // Pricing inputs (or could be fetched from venue)
                 manualPriceParams: z.object({
@@ -39,6 +41,12 @@ export const bookingRouter = createTRPCRouter({
                 }).optional(),
 
                 notes: z.string().optional(),
+
+                // Portal fields
+                isPublicBooking: z.boolean().default(false),
+                source: z.nativeEnum(BookingSource).default(BookingSource.STAFF),
+                specialRequests: z.string().optional(),
+                dietaryRequests: z.string().optional(),
             })
         )
         .mutation(async ({ ctx, input }) => {
@@ -61,7 +69,6 @@ export const bookingRouter = createTRPCRouter({
             }
 
             // Scenario 4: Capacity Check (Soft vs Hard limit)
-            // For MVP, we'll block if strictly above capacity (using max of all layouts for now)
             const maxCapacity = Math.max(
                 venue.capacityBanquet ?? 0,
                 venue.capacityTheater ?? 0,
@@ -76,63 +83,47 @@ export const bookingRouter = createTRPCRouter({
                 });
             }
 
-            // 2. Scenario 1 & 3: Conflict Detection
-            // Check for any booking that overlaps with the requested time range
+            // 2. Conflict Detection
             const conflicts = await ctx.db.booking.findMany({
                 where: {
                     venueId: input.venueId,
-                    status: { notIn: [BookingStatus.CANCELLED, BookingStatus.INQUIRY] }, // Inquiries don't block?
+                    status: { notIn: [BookingStatus.CANCELLED, BookingStatus.INQUIRY] },
                     OR: [
-                        {
-                            // Existing starts inside new
-                            startTime: { gte: input.startTime, lt: input.endTime }
-                        },
-                        {
-                            // Existing ends inside new
-                            endTime: { gt: input.startTime, lte: input.endTime }
-                        },
-                        {
-                            // Existing encompasses new
-                            startTime: { lte: input.startTime },
-                            endTime: { gte: input.endTime }
-                        }
+                        { startTime: { gte: input.startTime, lt: input.endTime } },
+                        { endTime: { gt: input.startTime, lte: input.endTime } },
+                        { startTime: { lte: input.startTime }, endTime: { gte: input.endTime } }
                     ]
                 },
             });
 
-            let status: BookingStatus = BookingStatus.INQUIRY; // Default starting status
+            let status: BookingStatus = BookingStatus.INQUIRY;
             let conflictId: string | null = null;
 
             if (conflicts.length > 0) {
-                // In a "Real-time" app we might throw error. 
-                // But for "Offline Sync" support (Scenario 1), we might create it as CONFLICT
-                // For this MVP implementation, let's just throw error for now to keep it simple unless explicit "force" flag is added.
-                // Or per scenario requirement: "We need a Sync Conflict state"
                 status = BookingStatus.CONFLICT;
-                conflictId = conflicts[0]?.id ?? null; // Link to the first conflict found
+                conflictId = conflicts[0]?.id ?? null;
             }
 
             // 3. Scenario 7: Snapshot Pricing Calculation
-            // Logic: Calculate tax based on Hotel Strategy
             const basePrice = input.manualPriceParams?.basePrice
                 ? Number(input.manualPriceParams.basePrice)
                 : Number(venue.basePrice ?? 0);
 
-            const serviceChargeRate = Number(venue.hotel.serviceChargeRate) / 100;
-            const vatRate = Number(venue.hotel.vatRate) / 100;
+            const serviceChargeRate = Number(venue.hotel.serviceChargeRate);
+            const vatRate = Number(venue.hotel.vatRate);
+            const strategy = venue.hotel.taxStrategy;
 
-            const serviceChargeAmount = basePrice * serviceChargeRate;
+            const serviceChargeAmount = basePrice * (serviceChargeRate / 100);
 
             let taxableAmount = basePrice;
-            if (venue.hotel.taxStrategy === "COMPOUND") {
+            if (strategy === TaxStrategy.COMPOUND) {
                 taxableAmount += serviceChargeAmount;
             }
 
-            const vatAmount = taxableAmount * vatRate;
+            const vatAmount = taxableAmount * (vatRate / 100);
             const totalAmount = basePrice + serviceChargeAmount + vatAmount;
 
             // 4. Create the Booking
-            // Generate readable number (BK-Timestamp for MVP simplicity, real world needs optimized counter)
             const bookingNumber = `BK-${Date.now().toString().slice(-6)}`;
 
             return ctx.db.booking.create({
@@ -142,21 +133,32 @@ export const bookingRouter = createTRPCRouter({
                     venueId: input.venueId,
                     customerId: input.customerId,
                     createdById: ctx.session.user.id,
-                    assignedToId: ctx.session.user.id, // Scenario 10: Default to creator
+                    assignedToId: ctx.session.user.id,
 
                     eventName: input.eventName,
                     eventType: input.eventType,
-                    eventDate: input.startTime, // Keeping the legacy date field as start date
+                    eventDate: input.startTime,
                     startTime: input.startTime,
                     endTime: input.endTime,
                     guestCount: input.guestCount,
+                    guaranteedPax: input.guaranteedPax ?? input.guestCount,
+                    layoutType: input.layoutType,
 
-                    // Snapshot Pricing
+                    // Snapshot Pricing & Tax (ERCA Compliance)
                     basePrice,
                     serviceCharge: serviceChargeAmount,
                     vat: vatAmount,
                     totalAmount,
                     currency: venue.hotel.currency,
+                    vatRateSnapshot: vatRate,
+                    serviceChargeRateSnapshot: serviceChargeRate,
+                    taxStrategySnapshot: strategy,
+
+                    // Portal & Source
+                    isPublicBooking: input.isPublicBooking,
+                    source: input.source,
+                    specialRequests: input.specialRequests,
+                    dietaryRequests: input.dietaryRequests,
 
                     status,
                     conflictId,

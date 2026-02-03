@@ -1,0 +1,1164 @@
+# VenBook Development Rules & Guidelines
+# For AI Coding Assistants (Cursor, Windsurf, Claude, etc.)
+
+## 🎯 Project Context
+
+**Project:** VenBook - Multi-tenant Banquet & Event Management SaaS  
+**Stack:** T3 Stack (Next.js 15, better-auth, tRPC, Prisma, TypeScript)  
+**Target:** Ethiopian Hotels (Bootstrap Business Model)  
+**Architecture:** Two-sided marketplace (Customer Portal + Staff Backend)  
+
+---
+
+## 📋 CORE PRINCIPLES
+
+### 1. SOLID Principles (Mandatory)
+
+#### Single Responsibility Principle (SRP)
+- One component/function = one reason to change
+- Split large components into smaller, focused ones
+- Example:
+  ```typescript
+  // ❌ BAD: Component does too much
+  function BookingPage() {
+    // Fetches data, validates form, handles payment, renders UI
+  }
+  
+  // ✅ GOOD: Separated concerns
+  function BookingPage() {
+    const booking = useBookingData();
+    return <BookingForm booking={booking} />;
+  }
+  
+  function BookingForm({ booking }) {
+    const { validate, submit } = useBookingSubmit();
+    return <FormFields onSubmit={submit} />;
+  }
+  ```
+
+#### Open/Closed Principle (OCP)
+- Open for extension, closed for modification
+- Use composition over inheritance
+- Example:
+  ```typescript
+  // ❌ BAD: Modifying function for new payment methods
+  function processPayment(method: string, amount: number) {
+    if (method === 'telebirr') { /* ... */ }
+    if (method === 'mpesa') { /* ... */ }
+    // Adding new method requires modifying this function
+  }
+  
+  // ✅ GOOD: Extension via strategy pattern
+  interface PaymentProcessor {
+    process(amount: number): Promise<PaymentResult>;
+  }
+  
+  class TelebirrProcessor implements PaymentProcessor { /* ... */ }
+  class MPesaProcessor implements PaymentProcessor { /* ... */ }
+  
+  function processPayment(processor: PaymentProcessor, amount: number) {
+    return processor.process(amount);
+  }
+  ```
+
+#### Liskov Substitution Principle (LSP)
+- Subtypes must be substitutable for their base types
+- Avoid breaking contracts in derived types
+- Example:
+  ```typescript
+  // ✅ GOOD: All invoice types follow same contract
+  interface Invoice {
+    calculate(): InvoiceTotal;
+    toPDF(): Buffer;
+  }
+  
+  class ProformaInvoice implements Invoice {
+    calculate() { /* calculates with deposit */ }
+    toPDF() { /* generates PDF */ }
+  }
+  
+  class FinalInvoice implements Invoice {
+    calculate() { /* calculates with actual pax */ }
+    toPDF() { /* generates PDF */ }
+  }
+  ```
+
+#### Interface Segregation Principle (ISP)
+- Many specific interfaces > one general interface
+- Clients shouldn't depend on interfaces they don't use
+- Example:
+  ```typescript
+  // ❌ BAD: Forcing all users to implement everything
+  interface UserActions {
+    createBooking(): void;
+    approveBooking(): void;
+    recordPayment(): void;
+    manageBEO(): void;
+  }
+  
+  // ✅ GOOD: Segregated interfaces
+  interface SalesActions {
+    createBooking(): void;
+  }
+  
+  interface FinanceActions {
+    recordPayment(): void;
+  }
+  
+  interface OperationsActions {
+    manageBEO(): void;
+  }
+  ```
+
+#### Dependency Inversion Principle (DIP)
+- Depend on abstractions, not concretions
+- High-level modules shouldn't depend on low-level modules
+- Example:
+  ```typescript
+  // ❌ BAD: Direct dependency on Prisma
+  class BookingService {
+    async create(data: BookingData) {
+      return await prisma.booking.create({ data });
+    }
+  }
+  
+  // ✅ GOOD: Depend on abstraction
+  interface BookingRepository {
+    create(data: BookingData): Promise<Booking>;
+    findById(id: string): Promise<Booking | null>;
+  }
+  
+  class BookingService {
+    constructor(private repo: BookingRepository) {}
+    
+    async create(data: BookingData) {
+      return await this.repo.create(data);
+    }
+  }
+  
+  class PrismaBookingRepository implements BookingRepository {
+    async create(data: BookingData) {
+      return await prisma.booking.create({ data });
+    }
+  }
+  ```
+
+---
+
+## 🏗️ T3 Stack Best Practices
+
+### tRPC Conventions
+
+#### 1. Router Organization
+```typescript
+// ❌ BAD: All procedures in one router
+export const appRouter = router({
+  getVenues: publicProcedure.query(/* ... */),
+  createBooking: protectedProcedure.mutation(/* ... */),
+  getInvoice: protectedProcedure.query(/* ... */),
+  // ... 50 more procedures
+});
+
+// ✅ GOOD: Organized by domain
+export const appRouter = router({
+  venue: venueRouter,
+  booking: bookingRouter,
+  invoice: invoiceRouter,
+  customer: customerRouter,
+});
+
+// server/api/routers/booking.ts
+export const bookingRouter = router({
+  list: protectedProcedure
+    .input(z.object({ status: z.string().optional() }))
+    .query(async ({ ctx, input }) => { /* ... */ }),
+    
+  create: protectedProcedure
+    .input(createBookingSchema)
+    .mutation(async ({ ctx, input }) => { /* ... */ }),
+    
+  checkConflict: publicProcedure
+    .input(conflictCheckSchema)
+    .query(async ({ ctx, input }) => { /* ... */ }),
+});
+```
+
+#### 2. Input Validation with Zod
+```typescript
+// ✅ ALWAYS use Zod schemas for validation
+import { z } from 'zod';
+
+// Shared schemas in server/api/schemas/
+export const createBookingSchema = z.object({
+  venueId: z.string().cuid(),
+  layoutId: z.string().cuid(),
+  customerId: z.string().cuid(),
+  startTime: z.date(),
+  endTime: z.date(),
+  guaranteedPax: z.number().int().positive(),
+  eventName: z.string().min(1).max(200),
+  eventType: z.string().optional(),
+  specialRequests: z.string().max(1000).optional(),
+}).refine(
+  (data) => data.endTime > data.startTime,
+  { message: "End time must be after start time" }
+);
+
+// Use in tRPC procedure
+create: protectedProcedure
+  .input(createBookingSchema)
+  .mutation(async ({ ctx, input }) => {
+    // input is fully typed and validated
+  }),
+```
+
+#### 3. Context & Middleware
+```typescript
+// server/api/trpc.ts
+
+// Base context for all procedures
+export const createTRPCContext = async (opts: CreateNextContextOptions) => {
+  const { req } = opts;
+  const session = await getServerSession(req);
+  
+  return {
+    session,
+    prisma,
+    hotelId: await getHotelIdFromSession(session),
+  };
+};
+
+// Middleware for multi-tenancy
+const enforceHotelContext = t.middleware(async ({ ctx, next }) => {
+  if (!ctx.hotelId) {
+    throw new TRPCError({ code: 'UNAUTHORIZED', message: 'No hotel context' });
+  }
+  
+  return next({
+    ctx: {
+      ...ctx,
+      hotelId: ctx.hotelId, // Now guaranteed to exist
+    },
+  });
+});
+
+// Reusable protected procedure with hotel context
+export const hotelProcedure = t.procedure.use(enforceHotelContext);
+
+// Usage
+export const venueRouter = router({
+  list: hotelProcedure.query(async ({ ctx }) => {
+    // ctx.hotelId is guaranteed to exist here
+    return await ctx.prisma.venue.findMany({
+      where: { hotelId: ctx.hotelId },
+    });
+  }),
+});
+```
+
+#### 4. Error Handling
+```typescript
+// ✅ GOOD: Proper tRPC error codes
+import { TRPCError } from '@trpc/server';
+
+create: hotelProcedure
+  .input(createBookingSchema)
+  .mutation(async ({ ctx, input }) => {
+    // Check for conflicts
+    const conflict = await checkConflict(input);
+    if (conflict) {
+      throw new TRPCError({
+        code: 'CONFLICT',
+        message: 'Venue already booked for this time',
+        cause: conflict,
+      });
+    }
+    
+    try {
+      return await ctx.prisma.booking.create({ data: input });
+    } catch (error) {
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to create booking',
+        cause: error,
+      });
+    }
+  }),
+
+// Client-side error handling
+const createBooking = api.booking.create.useMutation({
+  onError: (error) => {
+    if (error.data?.code === 'CONFLICT') {
+      toast.error('This venue is already booked');
+    } else {
+      toast.error('Failed to create booking');
+    }
+  },
+});
+```
+
+### Next.js 15 App Router Patterns
+
+#### 1. File Structure
+```
+app/
+├── (public)/              # Public routes (no auth)
+│   ├── layout.tsx
+│   ├── page.tsx          # Homepage
+│   ├── venues/
+│   │   ├── page.tsx      # Venue listing
+│   │   └── [slug]/
+│   │       └── page.tsx  # Venue details
+│   └── book/
+│       └── page.tsx      # Booking wizard
+│
+├── (dashboard)/          # Protected routes (staff only)
+│   ├── layout.tsx
+│   ├── dashboard/
+│   ├── calendar/
+│   ├── bookings/
+│   └── settings/
+│
+└── api/
+    └── trpc/
+        └── [trpc]/
+            └── route.ts  # tRPC handler
+```
+
+#### 2. Server Components (Default)
+```typescript
+// app/(public)/venues/page.tsx
+// ✅ GOOD: Server component for initial data
+export default async function VenuesPage() {
+  const venues = await prisma.venue.findMany({
+    where: { isActive: true },
+    include: { layouts: true },
+  });
+  
+  return <VenueGrid venues={venues} />;
+}
+
+// Mark client components explicitly
+'use client';
+export function VenueGrid({ venues }: { venues: Venue[] }) {
+  const [filter, setFilter] = useState('');
+  // Client-side interactivity
+}
+```
+
+#### 3. Data Fetching Patterns
+```typescript
+// ✅ Server Components: Direct DB queries
+export default async function BookingPage({ params }: { params: { id: string } }) {
+  const booking = await prisma.booking.findUnique({
+    where: { id: params.id },
+    include: { venue: true, customer: true },
+  });
+  
+  return <BookingDetails booking={booking} />;
+}
+
+// ✅ Client Components: Use tRPC hooks
+'use client';
+export function BookingList() {
+  const { data: bookings, isLoading } = api.booking.list.useQuery({
+    status: 'CONFIRMED',
+  });
+  
+  if (isLoading) return <Spinner />;
+  return <Table data={bookings} />;
+}
+```
+
+#### 4. Server Actions (for forms)
+```typescript
+// app/actions/booking.ts
+'use server';
+
+import { revalidatePath } from 'next/cache';
+
+export async function createBooking(formData: FormData) {
+  const validated = createBookingSchema.parse({
+    venueId: formData.get('venueId'),
+    // ... parse form data
+  });
+  
+  const booking = await prisma.booking.create({
+    data: validated,
+  });
+  
+  revalidatePath('/bookings');
+  return { success: true, bookingId: booking.id };
+}
+
+// Use in client component
+'use client';
+export function BookingForm() {
+  return (
+    <form action={createBooking}>
+      {/* form fields */}
+      <button type="submit">Create</button>
+    </form>
+  );
+}
+```
+
+### Prisma Best Practices
+
+#### 1. Multi-Tenant Middleware (CRITICAL)
+```typescript
+// lib/prisma.ts
+import { PrismaClient } from '@prisma/client';
+
+const globalForPrisma = global as unknown as { prisma: PrismaClient };
+
+export const prisma = globalForPrisma.prisma || new PrismaClient();
+
+// Multi-tenant middleware
+prisma.$use(async (params, next) => {
+  const hotelId = await getHotelIdFromContext();
+  
+  // Skip for Hotel model itself
+  if (params.model === 'Hotel') {
+    return next(params);
+  }
+  
+  // Auto-inject hotelId on create
+  if (params.action === 'create') {
+    params.args.data = {
+      ...params.args.data,
+      hotelId,
+    };
+  }
+  
+  // Auto-filter on queries
+  if (['findMany', 'findFirst', 'findUnique'].includes(params.action)) {
+    params.args.where = {
+      ...params.args.where,
+      hotelId,
+    };
+  }
+  
+  return next(params);
+});
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+```
+
+#### 2. Query Optimization
+```typescript
+// ❌ BAD: N+1 query problem
+const bookings = await prisma.booking.findMany();
+for (const booking of bookings) {
+  const venue = await prisma.venue.findUnique({ where: { id: booking.venueId } });
+  const customer = await prisma.customer.findUnique({ where: { id: booking.customerId } });
+}
+
+// ✅ GOOD: Use include/select
+const bookings = await prisma.booking.findMany({
+  include: {
+    venue: true,
+    customer: true,
+    layout: true,
+  },
+});
+
+// ✅ BETTER: Only select needed fields
+const bookings = await prisma.booking.findMany({
+  select: {
+    id: true,
+    eventName: true,
+    startTime: true,
+    venue: {
+      select: { name: true },
+    },
+    customer: {
+      select: { name: true, phone: true },
+    },
+  },
+});
+```
+
+#### 3. Transactions for Data Consistency
+```typescript
+// ✅ GOOD: Use transactions for multi-step operations
+async function confirmBookingWithPayment(bookingId: string, payment: PaymentData) {
+  return await prisma.$transaction(async (tx) => {
+    // 1. Update booking status
+    const booking = await tx.booking.update({
+      where: { id: bookingId },
+      data: { status: 'CONFIRMED' },
+    });
+    
+    // 2. Create invoice
+    const invoice = await tx.invoice.create({
+      data: {
+        bookingId: booking.id,
+        type: 'PROFORMA',
+        // ... invoice data
+      },
+    });
+    
+    // 3. Record payment
+    await tx.payment.create({
+      data: {
+        invoiceId: invoice.id,
+        amount: payment.amount,
+        method: payment.method,
+      },
+    });
+    
+    return { booking, invoice };
+  });
+}
+```
+
+---
+
+## 🎨 Component Architecture
+
+### 1. Component Types
+
+```typescript
+// ✅ Presentation Components (dump, reusable)
+// components/ui/button.tsx
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'primary' | 'secondary';
+  size?: 'sm' | 'md' | 'lg';
+}
+
+export function Button({ variant = 'primary', size = 'md', ...props }: ButtonProps) {
+  return <button className={cn(variants[variant], sizes[size])} {...props} />;
+}
+
+// ✅ Container Components (smart, connected)
+// components/booking/BookingList.tsx
+'use client';
+export function BookingList() {
+  const { data, isLoading } = api.booking.list.useQuery();
+  const deleteMutation = api.booking.delete.useMutation();
+  
+  if (isLoading) return <Spinner />;
+  
+  return (
+    <div>
+      {data?.map(booking => (
+        <BookingCard
+          key={booking.id}
+          booking={booking}
+          onDelete={() => deleteMutation.mutate({ id: booking.id })}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ✅ Layout Components (page structure)
+// components/layouts/DashboardLayout.tsx
+export function DashboardLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex h-screen">
+      <Sidebar />
+      <main className="flex-1 overflow-auto">
+        {children}
+      </main>
+    </div>
+  );
+}
+```
+
+### 2. Custom Hooks (Reusability)
+
+```typescript
+// hooks/useBookingConflict.ts
+export function useBookingConflict(venueId: string, startTime: Date, endTime: Date) {
+  return api.booking.checkConflict.useQuery(
+    { venueId, startTime, endTime },
+    {
+      enabled: !!venueId && !!startTime && !!endTime,
+      refetchOnWindowFocus: false,
+    }
+  );
+}
+
+// Usage in component
+function BookingForm() {
+  const [venueId, setVenueId] = useState('');
+  const [startTime, setStartTime] = useState(new Date());
+  const [endTime, setEndTime] = useState(new Date());
+  
+  const { data: conflict, isLoading } = useBookingConflict(venueId, startTime, endTime);
+  
+  return (
+    <div>
+      {conflict && <Alert>Venue already booked!</Alert>}
+    </div>
+  );
+}
+```
+
+---
+
+## 🔒 Security & Authentication
+
+### 1. Protected Routes
+```typescript
+// middleware.ts
+import { authMiddleware } from '@clerk/nextjs';
+
+export default authMiddleware({
+  publicRoutes: ['/', '/venues(.*)', '/book', '/api/public(.*)'],
+  ignoredRoutes: ['/api/trpc/(.*)'], // tRPC handles auth internally
+});
+
+export const config = {
+  matcher: ['/((?!.+\\.[\\w]+$|_next).*)', '/', '/(api|trpc)(.*)'],
+};
+```
+
+### 2. Permission Checks
+```typescript
+// lib/permissions.ts
+export const PERMISSIONS = {
+  CREATE_BOOKING: ['HOTEL_ADMIN', 'SALES'],
+  APPROVE_BOOKING: ['HOTEL_ADMIN'],
+  RECORD_PAYMENT: ['HOTEL_ADMIN', 'FINANCE'],
+  MANAGE_BEO: ['HOTEL_ADMIN', 'OPERATIONS'],
+} as const;
+
+export function canUserPerform(userRole: UserRole, action: keyof typeof PERMISSIONS) {
+  return PERMISSIONS[action].includes(userRole);
+}
+
+// Use in tRPC procedure
+createBooking: hotelProcedure
+  .input(createBookingSchema)
+  .mutation(async ({ ctx, input }) => {
+    if (!canUserPerform(ctx.session.user.role, 'CREATE_BOOKING')) {
+      throw new TRPCError({ code: 'FORBIDDEN' });
+    }
+    
+    // Proceed with creation
+  }),
+```
+
+---
+
+## 📦 State Management
+
+### 1. Server State (tRPC + TanStack Query)
+```typescript
+// ✅ GOOD: Use tRPC for server state
+const { data: venues } = api.venue.list.useQuery();
+const createVenue = api.venue.create.useMutation({
+  onSuccess: () => {
+    // Invalidate cache to refetch
+    utils.venue.list.invalidate();
+  },
+});
+```
+
+### 2. Client State (Zustand for complex UI state)
+```typescript
+// stores/booking-wizard.ts
+import { create } from 'zustand';
+
+interface BookingWizardState {
+  currentStep: number;
+  formData: Partial<BookingData>;
+  setStep: (step: number) => void;
+  updateFormData: (data: Partial<BookingData>) => void;
+  reset: () => void;
+}
+
+export const useBookingWizard = create<BookingWizardState>((set) => ({
+  currentStep: 1,
+  formData: {},
+  setStep: (step) => set({ currentStep: step }),
+  updateFormData: (data) => set((state) => ({
+    formData: { ...state.formData, ...data },
+  })),
+  reset: () => set({ currentStep: 1, formData: {} }),
+}));
+```
+
+### 3. URL State (for shareable filters)
+```typescript
+// ✅ GOOD: Store filters in URL for shareable links
+'use client';
+import { useSearchParams, useRouter } from 'next/navigation';
+
+export function BookingFilters() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  
+  const status = searchParams.get('status') || 'all';
+  
+  const setStatus = (newStatus: string) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('status', newStatus);
+    router.push(`/bookings?${params.toString()}`);
+  };
+  
+  return (
+    <Select value={status} onValueChange={setStatus}>
+      <option value="all">All</option>
+      <option value="confirmed">Confirmed</option>
+    </Select>
+  );
+}
+```
+
+---
+
+## 🧪 Testing Guidelines
+
+### 1. Unit Tests (Vitest)
+```typescript
+// __tests__/lib/tax-calculation.test.ts
+import { describe, it, expect } from 'vitest';
+import { calculateInvoice } from '@/lib/tax';
+
+describe('Tax Calculation', () => {
+  it('calculates STANDARD tax correctly', () => {
+    const result = calculateInvoice(
+      [{ amount: 10000, description: 'Venue', quantity: 1, unitPrice: 10000 }],
+      15,
+      10,
+      'STANDARD'
+    );
+    
+    expect(result.subtotal).toBe(10000);
+    expect(result.serviceCharge).toBe(1000);
+    expect(result.vatAmount).toBe(1500);
+    expect(result.total).toBe(12500);
+  });
+});
+```
+
+### 2. Integration Tests (tRPC procedures)
+```typescript
+// __tests__/api/booking.test.ts
+import { appRouter } from '@/server/api/root';
+import { createInnerTRPCContext } from '@/server/api/trpc';
+
+describe('Booking Router', () => {
+  it('prevents double booking', async () => {
+    const ctx = await createInnerTRPCContext({ session: mockSession });
+    const caller = appRouter.createCaller(ctx);
+    
+    // Create first booking
+    await caller.booking.create({
+      venueId: 'venue-1',
+      startTime: new Date('2026-03-15 14:00'),
+      endTime: new Date('2026-03-15 18:00'),
+      // ... other fields
+    });
+    
+    // Try to create overlapping booking
+    await expect(
+      caller.booking.create({
+        venueId: 'venue-1',
+        startTime: new Date('2026-03-15 16:00'),
+        endTime: new Date('2026-03-15 20:00'),
+        // ... other fields
+      })
+    ).rejects.toThrow('CONFLICT');
+  });
+});
+```
+
+---
+
+## 🔧 MCP SERVER INTEGRATION
+
+### Available MCP Servers for This Stack
+
+#### 1. Prisma MCP Server (Database Operations)
+```bash
+# Installation
+npm install @modelcontextprotocol/server-prisma
+
+# Configuration in claude_desktop_config.json
+{
+  "mcpServers": {
+    "prisma": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-prisma", "postgresql://..."],
+      "env": {
+        "DATABASE_URL": "postgresql://user:pass@localhost:5432/venbook"
+      }
+    }
+  }
+}
+```
+
+**When to Use:**
+- Query database schema
+- Generate Prisma queries
+- Understand relationships
+- Debug database issues
+
+**Example Prompt:**
+> "Using the Prisma MCP server, show me all bookings for venue 'grand-ballroom' in March 2026 with their customer details"
+
+---
+
+#### 2. PostgreSQL MCP Server (Direct DB Access)
+```bash
+# Installation
+npm install @modelcontextprotocol/server-postgres
+
+# Configuration
+{
+  "mcpServers": {
+    "postgres": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://localhost/venbook"]
+    }
+  }
+}
+```
+
+**When to Use:**
+- Complex SQL queries
+- Database performance analysis
+- Data migrations
+- Debugging data issues
+
+---
+
+#### 3. Filesystem MCP Server (Code Navigation)
+```bash
+# Configuration
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/venbook"]
+    }
+  }
+}
+```
+
+**When to Use:**
+- Reading/writing project files
+- Understanding project structure
+- Refactoring across multiple files
+
+---
+
+#### 4. Git MCP Server (Version Control)
+```bash
+# Configuration
+{
+  "mcpServers": {
+    "git": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-git", "--repository", "/path/to/venbook"]
+    }
+  }
+}
+```
+
+**When to Use:**
+- Check git history
+- Review recent changes
+- Understand code evolution
+
+---
+
+### MCP Usage Patterns
+
+#### Pattern 1: Database Schema Understanding
+```
+HUMAN: "Use the Prisma MCP server to explain the relationship between Booking and Invoice models"
+
+ASSISTANT: [Uses Prisma MCP to read schema.prisma]
+"The Booking model has a one-to-many relationship with Invoice..."
+```
+
+#### Pattern 2: Code Generation with Context
+```
+HUMAN: "Create a tRPC procedure to get all confirmed bookings for next week"
+
+ASSISTANT: [Uses Filesystem MCP to read existing routers]
+[Follows patterns from existing code]
+[Generates consistent code]
+```
+
+#### Pattern 3: Debugging with Database
+```
+HUMAN: "Why is this booking showing as TENTATIVE when payment was recorded?"
+
+ASSISTANT: [Uses PostgreSQL MCP to query data]
+"I see the payment exists but the booking status wasn't updated because..."
+```
+
+---
+
+## 📝 Code Style & Formatting
+
+### 1. TypeScript Strict Mode
+```json
+// tsconfig.json
+{
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+  }
+}
+```
+
+### 2. ESLint Configuration
+```json
+// .eslintrc.json
+{
+  "extends": [
+    "next/core-web-vitals",
+    "plugin:@typescript-eslint/recommended"
+  ],
+  "rules": {
+    "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
+    "@typescript-eslint/consistent-type-imports": "error",
+    "prefer-const": "error"
+  }
+}
+```
+
+### 3. Naming Conventions
+```typescript
+// ✅ GOOD naming
+// Components: PascalCase
+export function BookingCard() {}
+
+// Functions: camelCase
+export function calculateTax() {}
+
+// Constants: UPPER_SNAKE_CASE
+export const MAX_BOOKING_DURATION = 24;
+
+// Types/Interfaces: PascalCase
+export interface BookingData {}
+export type BookingStatus = 'INQUIRY' | 'CONFIRMED';
+
+// Private variables: _camelCase (optional)
+const _internalCache = new Map();
+
+// File names:
+// - Components: PascalCase (BookingCard.tsx)
+// - Utils: kebab-case (tax-calculator.ts)
+// - Hooks: camelCase (useBooking.ts)
+```
+
+---
+
+## 🚀 Performance Optimization
+
+### 1. Image Optimization
+```typescript
+// ✅ GOOD: Use Next.js Image component
+import Image from 'next/image';
+
+<Image
+  src={venue.imageUrl}
+  alt={venue.name}
+  width={800}
+  height={600}
+  placeholder="blur"
+  blurDataURL={venue.blurHash}
+/>
+```
+
+### 2. Dynamic Imports (Code Splitting)
+```typescript
+// ✅ GOOD: Lazy load heavy components
+import dynamic from 'next/dynamic';
+
+const BEOEditor = dynamic(() => import('@/components/BEOEditor'), {
+  loading: () => <Spinner />,
+  ssr: false, // Client-side only
+});
+```
+
+### 3. React Query Optimization
+```typescript
+// ✅ GOOD: Configure stale times appropriately
+const { data: venues } = api.venue.list.useQuery(undefined, {
+  staleTime: 5 * 60 * 1000, // 5 minutes (venues rarely change)
+  refetchOnWindowFocus: false,
+});
+
+const { data: bookings } = api.booking.list.useQuery(undefined, {
+  staleTime: 30 * 1000, // 30 seconds (bookings change frequently)
+  refetchInterval: 60 * 1000, // Refresh every minute
+});
+```
+
+---
+
+## 🛡️ Error Handling Patterns
+
+### 1. Global Error Boundary
+```typescript
+// app/error.tsx
+'use client';
+
+export default function Error({
+  error,
+  reset,
+}: {
+  error: Error;
+  reset: () => void;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen">
+      <h2>Something went wrong!</h2>
+      <p>{error.message}</p>
+      <button onClick={reset}>Try again</button>
+    </div>
+  );
+}
+```
+
+### 2. Mutation Error Handling
+```typescript
+// ✅ GOOD: Comprehensive error handling
+const createBooking = api.booking.create.useMutation({
+  onSuccess: (data) => {
+    toast.success('Booking created successfully');
+    router.push(`/bookings/${data.id}`);
+    utils.booking.list.invalidate();
+  },
+  onError: (error) => {
+    if (error.data?.code === 'CONFLICT') {
+      toast.error('Venue already booked for this time');
+    } else if (error.data?.code === 'FORBIDDEN') {
+      toast.error('You do not have permission');
+    } else {
+      toast.error('Failed to create booking. Please try again.');
+      console.error('Booking creation error:', error);
+    }
+  },
+});
+```
+
+---
+
+## 📚 Documentation Standards
+
+### 1. Component Documentation
+```typescript
+/**
+ * VenueCard displays a venue with its details and actions
+ * 
+ * @param venue - The venue object with layouts and images
+ * @param onBook - Callback when user clicks book button
+ * 
+ * @example
+ * ```tsx
+ * <VenueCard
+ *   venue={venue}
+ *   onBook={(venueId) => router.push(`/book?venue=${venueId}`)}
+ * />
+ * ```
+ */
+export function VenueCard({ venue, onBook }: VenueCardProps) {
+  // ...
+}
+```
+
+### 2. API Route Documentation
+```typescript
+/**
+ * Creates a new booking with conflict detection
+ * 
+ * @throws {TRPCError} CONFLICT - When venue is already booked
+ * @throws {TRPCError} FORBIDDEN - When user lacks permission
+ * 
+ * @returns The created booking with invoice
+ */
+create: hotelProcedure
+  .input(createBookingSchema)
+  .mutation(async ({ ctx, input }) => {
+    // ...
+  }),
+```
+
+---
+
+## ✅ Pre-Commit Checklist
+
+Before committing code, ensure:
+
+- [ ] TypeScript compiles without errors (`npm run type-check`)
+- [ ] ESLint passes (`npm run lint`)
+- [ ] Tests pass (`npm run test`)
+- [ ] No console.logs in production code (use proper logging)
+- [ ] No commented-out code (use git history instead)
+- [ ] Updated schema? Run `prisma migrate dev`
+- [ ] Added new dependencies? Update package.json
+- [ ] Breaking changes? Update README
+
+---
+
+## 🎯 AI Assistant Instructions
+
+### When Generating Code:
+
+1. **ALWAYS** follow SOLID principles
+2. **ALWAYS** use TypeScript with strict mode
+3. **ALWAYS** validate inputs with Zod schemas
+4. **ALWAYS** use tRPC for API routes (never REST)
+5. **ALWAYS** enforce multi-tenancy with hotelId
+6. **ALWAYS** handle errors properly (no silent failures)
+7. **ALWAYS** use Server Components unless interactivity needed
+8. **PREFER** composition over inheritance
+9. **PREFER** explicit over implicit
+10. **PREFER** functional programming patterns
+
+### When Refactoring:
+
+1. Extract repeated logic into reusable functions/hooks
+2. Split large components (>200 lines) into smaller ones
+3. Move business logic out of components into services
+4. Replace any/unknown with proper types
+5. Add missing error handling
+6. Improve naming for clarity
+
+### When Debugging:
+
+1. Use MCP servers to inspect database state
+2. Check tRPC error codes and messages
+3. Verify multi-tenancy (is hotelId being filtered?)
+4. Check Prisma query performance
+5. Review React Query cache state
+
+### Code Review Focus:
+
+1. Is this code testable?
+2. Does it follow SOLID principles?
+3. Is error handling comprehensive?
+4. Are types explicit (no any/unknown)?
+5. Is it consistent with existing patterns?
+6. Will this scale with 100+ hotels?
+
+---
+
+## 🔗 Useful Resources
+
+- [T3 Stack Documentation](https://create.t3.gg/)
+- [tRPC Best Practices](https://trpc.io/docs/best-practices)
+- [Prisma Best Practices](https://www.prisma.io/docs/guides/performance-and-optimization)
+- [Next.js App Router](https://nextjs.org/docs/app)
+- [TypeScript Handbook](https://www.typescriptlang.org/docs/handbook/intro.html)
+- [SOLID Principles](https://en.wikipedia.org/wiki/SOLID)
+
+---
+
+**END OF GUIDELINES**
+
+*These rules should be followed by all AI assistants and developers working on VenBook.*

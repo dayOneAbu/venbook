@@ -19,6 +19,16 @@ enum UserRole {
   CUSTOMER
 }
 
+enum CustomerType {
+  INDIVIDUAL
+  COMPANY
+}
+
+enum BookingSource {
+  STAFF
+  CUSTOMER_PORTAL
+}
+
 enum BookingStatus {
   INQUIRY
   TENTATIVE
@@ -26,7 +36,7 @@ enum BookingStatus {
   EXECUTED
   COMPLETED
   CANCELLED
-  CONFLICT // Scenario 1: Offline conflict
+  CONFLICT // Scenario: Exceptional overlap or race condition
   WAITLIST // Scenario 9: Resource contention fallback
 }
 
@@ -76,6 +86,10 @@ model Hotel {
   currency              String      @default("ETB")
   allowCapacityOverride Boolean     @default(false)
 
+  // Safety and Lifecycle
+  isDeactivated Boolean   @default(false)
+  deactivatedAt DateTime?
+
   // Relationships
   ownerId String? @unique
   owner   User?   @relation("HotelOwner", fields: [ownerId], references: [id])
@@ -83,6 +97,7 @@ model Hotel {
   staff     User[]     @relation("HotelStaff")
   venues    Venue[]
   customers Customer[]
+  bookings  Booking[]
   resources Resource[] // Scenario 9
 
   createdAt DateTime @default(now())
@@ -113,6 +128,7 @@ model User {
   // Work
   createdBookings  Booking[] @relation("BookingCreator")
   assignedBookings Booking[] @relation("BookingOwner") // Scenario 10
+  receivedPayments Payment[] @relation("PaymentReceiver")
 
   sessions Session[]
   accounts Account[]
@@ -133,6 +149,7 @@ model Customer {
   email       String?
   phone       String?
   tinNumber   String?
+  type        CustomerType @default(INDIVIDUAL)
 
   bookings Booking[]
 
@@ -158,6 +175,8 @@ model Venue {
   basePrice     Decimal? @db.Decimal(10, 2)
   priceUnit     String   @default("day") // "hour", "day"
   squareFootage Int?
+  slug          String   @unique
+  isActive      Boolean  @default(true)
 
   images    VenueImage[]
   amenities VenueAmenity[]
@@ -203,6 +222,7 @@ model Booking {
   bookingNumber String @unique // BK-2026-0001
 
   hotelId    String
+  hotel      Hotel    @relation(fields: [hotelId], references: [id])
   venueId    String
   venue      Venue    @relation(fields: [venueId], references: [id])
   customerId String
@@ -211,7 +231,7 @@ model Booking {
   // Grouping (Scenario 6: Recurring Events)
   bookingGroupId String?
 
-  // Operational (Scenario 1 & 10)
+  // Operational (Scenario 10)
   conflictId   String?
   assignedToId String
   assignedTo   User    @relation("BookingOwner", fields: [assignedToId], references: [id])
@@ -235,6 +255,25 @@ model Booking {
 
   status BookingStatus @default(INQUIRY)
   notes  String?
+
+  // Operational PAX (Scenario 4)
+  guaranteedPax Int  @default(0)
+  actualPax     Int?
+
+  // Layout Capture (Simplified)
+  layoutType String?
+
+  // Tax Compliance Snapshots (Scenario 7/ERCA)
+  vatRateSnapshot           Decimal     @default(15)
+  serviceChargeRateSnapshot Decimal     @default(10)
+  taxStrategySnapshot       TaxStrategy @default(STANDARD)
+
+  // Customer Portal (Addendum)
+  isPublicBooking     Boolean       @default(false)
+  customerAccessToken String?       @unique
+  source              BookingSource @default(STAFF)
+  specialRequests     String?
+  dietaryRequests     String?
 
   payments  Payment[]
   resources BookingResource[]
@@ -262,6 +301,10 @@ model Payment {
 
   reference String?
   notes     String?
+
+  receivedById String?
+  receivedBy   User?   @relation("PaymentReceiver", fields: [receivedById], references: [id])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
