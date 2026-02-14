@@ -111,9 +111,9 @@ export function SignUpForm({
               <Field>
                 <div className="rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
                   You’re creating a customer account to book venues.{" "}
-                  <a href="/auth/sign-up?role=owner" className="underline">
+                  <Link href="/auth/owner/sign-up" className="underline">
                     Need a hotel account instead?
-                  </a>
+                  </Link>
                 </div>
               </Field>
               <Field data-invalid={!!errors.name}>
@@ -157,9 +157,9 @@ export function SignUpForm({
                 </Button>
                 <FieldDescription className="text-center">
                   Already have an account?{" "}
-                  <a href="/auth/sign-in" className="underline">
+                  <Link href="/auth/customer/sign-in" className="underline">
                     Sign in
-                  </a>
+                  </Link>
                 </FieldDescription>
               </Field>
             </FieldGroup>

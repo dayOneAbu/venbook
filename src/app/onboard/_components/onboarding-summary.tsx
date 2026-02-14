@@ -12,10 +12,20 @@ export function OnboardingSummary() {
   const router = useRouter();
 
   const setupMutation = api.hotel.setup.useMutation({
-    onSuccess: () => {
+    onSuccess: (hotel) => {
       toast.success("Setup complete! Welcome aboard.");
       reset();
-      router.push("/admin");
+
+      const hostname = window.location.hostname;
+      const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "localhost:3000";
+      const isRootDomain = hostname === rootDomain.split(":")[0];
+
+      if (isRootDomain && hotel.subdomain) {
+        router.push(`/dashboard/tenant/${hotel.subdomain}/admin`);
+      } else {
+        router.push("/admin");
+      }
+      
       router.refresh();
     },
     onError: (error) => {

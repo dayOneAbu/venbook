@@ -16,7 +16,7 @@ export default function Home() {
   );
   const exploreHref = session
     ? "/venues"
-    : `/auth/sign-up?role=customer&redirect=${customerOnboardRedirect}`;
+    : `/auth/customer/sign-up?redirect=${customerOnboardRedirect}`;
 
   return (
     <div className="flex flex-col gap-24 pb-32 overflow-x-hidden bg-background text-foreground">
@@ -61,7 +61,7 @@ export default function Home() {
                 className="h-14 px-8 text-lg rounded-full bg-card/20 backdrop-blur-md border-border text-foreground hover:bg-card/40"
                 asChild
               >
-                <Link href={`/auth/sign-up?role=owner&redirect=${ownerRedirect}`}>
+                <Link href={`/auth/owner/sign-up?redirect=${ownerRedirect}`}>
                   List Your Property
                   <Hotel className="ml-2 h-5 w-5" />
                 </Link>
@@ -154,7 +154,7 @@ export default function Home() {
                   </li>
                 </ul>
                 <Button variant="link" className="p-0 text-lg group/btn" asChild>
-                  <Link href={`/auth/sign-up?role=owner&redirect=${ownerRedirect}`}>
+                  <Link href={`/auth/owner/sign-up?redirect=${ownerRedirect}`}>
                     Register Your Venue
                     <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover/btn:translate-x-1" />
                   </Link>

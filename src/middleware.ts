@@ -2,18 +2,46 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
-  const sessionCookie = request.cookies.get("better-auth.session_token") ?? request.cookies.get("__Secure-better-auth.session_token");
   const { pathname } = request.nextUrl;
+  const hostname = request.headers.get("host") ?? "";
 
-  // 1. Define public routes
+  // Define the root domain
+  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "localhost:3000";
+
+  // 1. Determine the routing context
+  const isPlatformSubdomain = hostname === `platform.${rootDomain}`;
+  const isTenantSubdomain = !isPlatformSubdomain && hostname !== rootDomain && hostname.endsWith(`.${rootDomain}`);
+  
+  // If we are on a subdomain, we perform rewrites
+  if (isPlatformSubdomain) {
+    return NextResponse.rewrite(new URL(`/dashboard/platform${pathname}${request.nextUrl.search}`, request.url));
+  }
+
+  if (isTenantSubdomain) {
+    const subdomain = hostname.split(".")[0];
+    // Route to tenant admin if path starts with /admin, otherwise could be a tenant public site (if implemented)
+    const tenantPath = pathname.startsWith("/admin") 
+      ? `/dashboard/tenant/${subdomain}${pathname}`
+      : `/(marketplace)/venues/${subdomain}${pathname}`; // Fallback or public view logic
+    return NextResponse.rewrite(new URL(`${tenantPath}${request.nextUrl.search}`, request.url));
+  }
+
+  // 2. Auth Protection Logic (for the root domain or direct paths)
+  const sessionCookie = request.cookies.get("better-auth.session_token") ?? request.cookies.get("__Secure-better-auth.session_token");
+
   const isPublicRoute =
     pathname === "/" ||
     pathname.startsWith("/venues") ||
     pathname.startsWith("/auth");
 
-  // 2. Not logged in and not a public route -> Redirect to sign-in
-  if (!sessionCookie && !isPublicRoute) {
-    return NextResponse.redirect(new URL("/auth/sign-in", request.url));
+  // Redirect to sign-in if accessing dashboard areas without session
+  if (!sessionCookie && !isPublicRoute && (pathname.startsWith("/dashboard") || pathname.startsWith("/admin"))) {
+    const next = encodeURIComponent(pathname);
+    const signInPath = pathname.includes("platform") || pathname.startsWith("/admin")
+      ? `/auth/owner/sign-in?redirect=${next}`
+      : `/auth/customer/sign-in?redirect=${next}`;
+    
+    return NextResponse.redirect(new URL(signInPath, request.url));
   }
 
   return NextResponse.next();
@@ -21,16 +49,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    // Also exclude any request that looks like a file with an extension
-    // (e.g. `/hero.jpeg`, `/assets/logo.png`) so public files are served
-    // directly and not intercepted by this middleware.
     "/((?!api|_next/static|_next/image|favicon\.ico|.*\\..*).*)",
   ],
 };

@@ -42,6 +42,17 @@ export const auth = betterAuth({
   ],
   socialProviders: {
   },
+  advanced: {
+    cookies: {
+      session_token: {
+        attributes: {
+          domain: process.env.NEXT_PUBLIC_ROOT_DOMAIN 
+            ? `.${process.env.NEXT_PUBLIC_ROOT_DOMAIN.split(':')[0]}` 
+            : ".localhost",
+        },
+      },
+    },
+  },
 });
 
 export type Session = typeof auth.$Infer.Session;

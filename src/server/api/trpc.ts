@@ -132,3 +132,23 @@ export const protectedProcedure = t.procedure
       },
     });
   });
+
+/**
+ * Super Admin procedure
+ *
+ * Use this for platform-level management routes that should only be accessible
+ * to users with the SUPER_ADMIN role.
+ */
+export const superAdminProcedure = protectedProcedure.use(({ ctx, next }) => {
+  if (ctx.session.user.role !== "SUPER_ADMIN") {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "This procedure is restricted to super admins.",
+    });
+  }
+  return next({
+    ctx: {
+      session: { ...ctx.session, user: ctx.session.user },
+    },
+  });
+});

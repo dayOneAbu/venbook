@@ -1,6 +1,6 @@
 "use client";
 
-import { api } from "~/trpc/react";
+import { api, type RouterOutputs } from "~/trpc/react";
 import { Button } from "~/_components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/_components/ui/card";
 import {
@@ -27,32 +27,26 @@ import {
 } from "~/_components/ui/dropdown-menu";
 import FadeContent from "~/_components/FadeContent";
 
-type User = {
-  id: string;
-  name: string | null;
-  email: string;
-  role: "HOTEL_ADMIN" | "SALES" | "OPERATIONS" | "FINANCE" | "CUSTOMER" | "SUPER_ADMIN";
-  emailVerified: boolean;
-  isOnboarded: boolean;
-};
+type User = RouterOutputs["user"]["getAll"][number];
 
-export default function UsersPage() {
+export default function StaffManagementPage() {
   const { data: users, refetch, isLoading } = api.user.getAll.useQuery();
+
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
 
   const deleteUser = api.user.delete.useMutation({
     onSuccess: () => {
-      toast.success("User deleted");
+      toast.success("Staff member removed");
       void refetch();
     },
     onError: (error) => {
-      toast.error(error.message || "Failed to delete user");
+      toast.error(error.message || "Failed to remove staff member");
     },
   });
 
   const handleDelete = (id: string, name: string | null) => {
-    if (confirm(`Are you sure you want to remove ${name ?? "this user"} from the staff?`)) {
+    if (confirm(`Are you sure you want to remove ${name ?? "this staff member"}?`)) {
       deleteUser.mutate({ id });
     }
   };
@@ -83,9 +77,7 @@ export default function UsersPage() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-3xl font-bold tracking-tight">Staff Management</h2>
-            <p className="text-muted-foreground">
-              Manage your hotel&apos;s staff members and their access levels.
-            </p>
+            <p className="text-muted-foreground">Manage your hotel&apos;s staff members and their access levels.</p>
           </div>
           <AddStaffSheet onUserAdded={() => refetch()} />
         </div>
@@ -114,7 +106,7 @@ export default function UsersPage() {
                 {isLoading ? (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center py-10">
-                      Loading users...
+                      Loading staff...
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -170,7 +162,7 @@ export default function UsersPage() {
                 {!isLoading && !users?.length && (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
-                      No users found.
+                      No staff members found.
                     </TableCell>
                   </TableRow>
                 )}

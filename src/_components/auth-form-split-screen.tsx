@@ -18,6 +18,7 @@ import { Input } from "~/_components/ui/input";
 import { Checkbox } from "~/_components/ui/checkbox";
 import { Loader2 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 
 // Validation schema for the form
 const formSchema = z.object({
@@ -231,12 +232,12 @@ export function AuthFormSplitScreen({
                         </FormItem>
                       )}
                     />
-                    <a
+                    <Link
                       href={forgotPasswordHref}
                       className="text-sm font-medium text-primary hover:underline"
                     >
                       Forgotten Password
-                    </a>
+                    </Link>
                   </motion.div>
                 )}
 
@@ -258,22 +259,22 @@ export function AuthFormSplitScreen({
               {isSignUp ? (
                 <>
                   Already have an account?{" "}
-                  <a
+                  <Link
                     href={forgotPasswordHref} // Overusing this prop for simplicity in signin link
                     className="font-medium text-primary hover:underline"
                   >
                     Sign in here
-                  </a>
+                  </Link>
                 </>
               ) : (
                 <>
                   Don&apos;t have an account?{" "}
-                  <a
+                  <Link
                     href={createAccountHref}
                     className="font-medium text-primary hover:underline"
                   >
                     Create one here
-                  </a>
+                  </Link>
                 </>
               )}
               .

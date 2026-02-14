@@ -73,10 +73,10 @@ export function Navbar() {
           ) : (
             <>
               <Button variant="ghost" asChild>
-                <Link href="/auth/sign-in">Login</Link>
+                <Link href="/auth/customer/sign-in">Login</Link>
               </Button>
               <Button asChild>
-                <Link href="/auth/sign-up">Get Started</Link>
+                <Link href="/auth/customer/sign-up">Get Started</Link>
               </Button>
             </>
           )}

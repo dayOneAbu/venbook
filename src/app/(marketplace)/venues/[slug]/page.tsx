@@ -169,12 +169,12 @@ export default function VenueDetailPage() {
                   {data.hotel.email ?? "Email available after inquiry"}
                 </div>
                 {data.hotel.website && (
-                  <a
+                  <Link
                     href={data.hotel.website}
                     className="text-sm font-medium text-primary hover:underline"
                   >
                     Visit website
-                  </a>
+                  </Link>
                 )}
               </CardContent>
             </Card>

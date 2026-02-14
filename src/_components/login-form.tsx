@@ -60,19 +60,19 @@ export function LoginForm({
       }
       
       // Handle Redirection
+      let nextPath = "/admin";
+
       if (data.user && !data.user.isOnboarded) {
         if (redirectPath && !redirectPath.startsWith("/onboard")) {
-          router.push(`/onboard?role=customer&next=${encodeURIComponent(redirectPath)}`);
+          nextPath = `/onboard?role=customer&next=${encodeURIComponent(redirectPath)}`;
         } else {
-          router.push("/onboard?role=customer");
+          nextPath = "/onboard?role=customer";
         }
       } else if (redirectPath) {
-        router.push(redirectPath);
-      } else {
-        router.push("/admin");
+        nextPath = redirectPath;
       }
-      
-      router.refresh();
+
+      router.replace(nextPath);
     },
   });
 
@@ -117,12 +117,12 @@ export function LoginForm({
               <Field data-invalid={!!errors.password}>
                 <div className="flex items-center">
                   <FieldLabel htmlFor="password">Password</FieldLabel>
-                  <a
+                  <Link
                     href="#"
                     className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
                   >
                     Forgot your password?
-                  </a>
+                  </Link>
                 </div>
                 <Input
                   id="password"
@@ -142,9 +142,9 @@ export function LoginForm({
                 </Button>
                 <FieldDescription className="text-center">
                   Don&apos;t have an account?{" "}
-                  <a href="/auth/sign-up" className="underline">
+                  <Link href="/auth/customer/sign-up" className="underline">
                     Sign up
-                  </a>
+                  </Link>
                 </FieldDescription>
               </Field>
             </FieldGroup>

@@ -11,28 +11,31 @@ import { auth } from "~/server/better-auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-export default async function DashboardLayout({
+export default async function PlatformLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const session = await auth.api.getSession({
+  const session = (await auth.api.getSession({
     headers: await headers(),
-  });
+  })) as { user: { role: string } } | null;
 
-  if (!session?.user?.isOnboarded) {
-    redirect("/onboard");
+  // Physically restict to SUPER_ADMIN
+  if (session?.user?.role !== "SUPER_ADMIN") {
+    redirect("/");
   }
 
   return (
     <SidebarProvider>
-      <AppSidebar />
+      <AppSidebar context="platform" />
       <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b px-4">
+        <header className="grid h-16 shrink-0 grid-cols-[auto_1fr_auto] items-center gap-2 border-b px-4">
           <div className="flex items-center gap-2">
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="mr-2 h-4" />
-            <h1 className="text-sm font-medium">VenBook</h1>
+          </div>
+          <div className="text-center font-bold">
+             Platform Control Center
           </div>
           <ModeToggle />
         </header>

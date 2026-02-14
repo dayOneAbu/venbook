@@ -8,7 +8,7 @@ export const authRouter = createTRPCRouter({
   signIn: publicProcedure
     .input(z.object({ email: z.string().email(), password: z.string() }))
     .mutation(async ({ input, ctx }) => {
-      console.log("we are here", input)
+    
       try {
 
         // Use better-auth's server API for sign in
@@ -19,14 +19,25 @@ export const authRouter = createTRPCRouter({
           },
           headers: ctx.headers,
         });
-        console.log("result", result)
+      
+        // Fetch the assigned hotel's subdomain if it exists
+        const userWithHotel = await ctx.db.user.findUnique({
+          where: { id: result.user.id },
+          select: {
+            hotel: {
+              select: { subdomain: true }
+            }
+          }
+        });
+      
         // Return success - cookies are handled by better-auth via the API route
         return {
           success: true,
           user: result.user,
+          subdomain: userWithHotel?.hotel?.subdomain ?? null,
         };
       } catch (error) {
-        console.log(error)
+      
         throw new TRPCError({
           code: "UNAUTHORIZED",
           message:
