@@ -14,6 +14,7 @@ import {
   Users,
   UserRound,
   Boxes,
+  Settings,
 } from "lucide-react"
 
 import {
@@ -44,6 +45,7 @@ const tenantNav = [
   { title: "Amenities", url: "/admin/amenities", icon: Sparkles },
   { title: "Payments", url: "/admin/payments", icon: CreditCard },
   { title: "Resources", url: "/admin/resources", icon: Boxes },
+  { title: "Settings", url: "/admin/settings", icon: Settings },
 ]
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {

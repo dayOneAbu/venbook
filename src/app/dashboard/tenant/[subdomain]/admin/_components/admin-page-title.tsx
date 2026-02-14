@@ -12,6 +12,8 @@ const titleMap: Array<{ prefix: string; title: string }> = [
   { prefix: "/admin/bookings", title: "Bookings" },
   { prefix: "/admin/payments", title: "Payments" },
   { prefix: "/admin/resources", title: "Resources" },
+  { prefix: "/admin/staff", title: "Staff" },
+  { prefix: "/admin/settings", title: "Settings" },
 ]
 
 const formatSegment = (segment: string) =>
