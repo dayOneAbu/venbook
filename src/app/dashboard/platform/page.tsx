@@ -2,12 +2,21 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "~/_components/ui/card"
 import { authClient } from "~/server/better-auth/client"
+import { api } from "~/trpc/react"
 import FadeContent from "~/_components/FadeContent"
-import { Building2, Users, CreditCard, Activity } from "lucide-react"
+import { Building2, Users, Activity, ShieldCheck } from "lucide-react"
 
 export default function PlatformDashboardPage() {
   const { data: session } = authClient.useSession()
   const userName = session?.user?.name ?? "Admin"
+
+  const { data: hotelsData } = api.hotel.adminGetAll.useQuery({})
+  const { data: users } = api.admin.getAllUsers.useQuery()
+
+  const totalHotels = hotelsData?.hotels?.length ?? 0
+  const verifiedHotels = hotelsData?.hotels?.filter(h => h.isVerified).length ?? 0
+  const totalUsers = users?.length ?? 0
+  const onboardedUsers = users?.filter(u => u.isOnboarded).length ?? 0
 
   return (
     <div className="space-y-8">
@@ -29,8 +38,10 @@ export default function PlatformDashboardPage() {
             <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12</div>
-            <p className="text-xs text-muted-foreground">+2 new this week</p>
+            <div className="text-2xl font-bold">{totalHotels}</div>
+            <p className="text-xs text-muted-foreground">
+              {verifiedHotels} verified
+            </p>
           </CardContent>
         </Card>
         
@@ -40,19 +51,23 @@ export default function PlatformDashboardPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1,204</div>
-            <p className="text-xs text-muted-foreground">+180 new signups</p>
+            <div className="text-2xl font-bold">{totalUsers}</div>
+            <p className="text-xs text-muted-foreground">
+              {onboardedUsers} onboarded
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Verified Properties</CardTitle>
+            <ShieldCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">$12,450.00</div>
-            <p className="text-xs text-muted-foreground">+20.1% from last month</p>
+            <div className="text-2xl font-bold">{verifiedHotels}</div>
+            <p className="text-xs text-muted-foreground">
+              {totalHotels - verifiedHotels} pending verification
+            </p>
           </CardContent>
         </Card>
 
@@ -63,7 +78,9 @@ export default function PlatformDashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">Healthy</div>
-            <p className="text-xs text-muted-foreground">All services operational</p>
+            <p className="text-xs text-muted-foreground">
+              All services operational
+            </p>
           </CardContent>
         </Card>
       </div>

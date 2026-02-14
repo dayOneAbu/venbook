@@ -37,7 +37,8 @@ export function TaxSettingsForm() {
   const { hotelData, updateHotelData, nextStep, prevStep } = useOnboardingStore();
 
   const form = useForm<TaxSettingsValues>({
-    resolver: zodResolver(taxSettingsSchema),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+    resolver: zodResolver(taxSettingsSchema) as any,
     defaultValues: {
       taxStrategy: hotelData.taxStrategy,
       vatRate: hotelData.vatRate,
@@ -66,7 +67,7 @@ export function TaxSettingsForm() {
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <FormField
+          <FormField<TaxSettingsValues, "taxStrategy">
             control={form.control}
             name="taxStrategy"
             render={({ field }) => (
@@ -92,7 +93,7 @@ export function TaxSettingsForm() {
           />
 
           <div className="grid grid-cols-2 gap-6">
-            <FormField
+            <FormField<TaxSettingsValues, "vatRate">
               control={form.control}
               name="vatRate"
               render={({ field }) => (
@@ -105,7 +106,7 @@ export function TaxSettingsForm() {
                 </FormItem>
               )}
             />
-            <FormField
+            <FormField<TaxSettingsValues, "serviceChargeRate">
               control={form.control}
               name="serviceChargeRate"
               render={({ field }) => (

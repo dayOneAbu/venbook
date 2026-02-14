@@ -50,22 +50,27 @@ export const bookingRouter = createTRPCRouter({
             })
         )
         .mutation(async ({ ctx, input }) => {
-            const hotelId = ctx.session.user.hotelId;
-            if (!hotelId) {
-                throw new TRPCError({
-                    code: "UNAUTHORIZED",
-                    message: "You must belong to a hotel to create bookings.",
-                });
-            }
+            const userHotelId = ctx.session.user.hotelId;
+            const isCustomer = ctx.session.user.role === "CUSTOMER";
 
             // 1. Fetch Venue & Hotel Settings for Pricing & Capacity
             const venue = await ctx.db.venue.findFirst({
-                where: { id: input.venueId, hotelId }, // Ensure venue belongs to this hotel
+                where: { id: input.venueId },
                 include: { hotel: true },
             });
 
             if (!venue) {
                 throw new TRPCError({ code: "NOT_FOUND", message: "Venue not found" });
+            }
+
+            const hotelId = venue.hotelId;
+
+            // Security check: if user is staff, ensure they belong to this hotel
+            if (!isCustomer && userHotelId !== hotelId && ctx.session.user.role !== "SUPER_ADMIN") {
+                throw new TRPCError({
+                    code: "UNAUTHORIZED",
+                    message: "You can only create bookings for your own hotel.",
+                });
             }
 
             // Scenario 4: Capacity Check (Soft vs Hard limit)
@@ -96,7 +101,12 @@ export const bookingRouter = createTRPCRouter({
                 },
             });
 
-            let status: BookingStatus = BookingStatus.INQUIRY;
+            let status: BookingStatus = isCustomer ? BookingStatus.INQUIRY : BookingStatus.INQUIRY;
+            // Actually, staff usually create TENTATIVE or CONFIRMED, but let's default to INQUIRY for safety or handle it via source
+            if (input.source === BookingSource.STAFF) {
+                status = BookingStatus.INQUIRY; // Or TENTATIVE
+            }
+
             let conflictId: string | null = null;
 
             if (conflicts.length > 0) {
@@ -133,7 +143,7 @@ export const bookingRouter = createTRPCRouter({
                     venueId: input.venueId,
                     customerId: input.customerId,
                     createdById: ctx.session.user.id,
-                    assignedToId: ctx.session.user.id,
+                    assignedToId: isCustomer ? undefined : ctx.session.user.id,
 
                     eventName: input.eventName,
                     eventType: input.eventType,

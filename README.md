@@ -2,6 +2,18 @@
 
 > Modern venue booking platform for Ethiopian hotels
 
+## 🔑 Demo Accounts
+
+| Role | Email | Password | URL |
+| :--- | :--- | :--- | :--- |
+| **Super Admin** | `admin@venbook.com` | `password123` | /auth/admin/sign-in |
+| **Hotel Owner (Addis)** | `owner@hotel-10-addisababa.com` | `password123` | /auth/owner/sign-in |
+| **Hotel Owner (Hawassa)** | `owner@hotel-1-hawassa.com` | `password123` | /auth/owner/sign-in |
+| **Staff (Sales)** | `staff2@hotel-1-hawassa.com` | `password123` | /auth/owner/sign-in |
+| **Customer** | `client1@example.com` | `password123` | /auth/customer/sign-in |
+
+---
+
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue)](https://www.typescriptlang.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
 [![tRPC](https://img.shields.io/badge/tRPC-11-blue)](https://trpc.io/)

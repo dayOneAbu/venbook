@@ -1,14 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import Image from "next/image";
+import Link from "next/link";
 import { Hotel, Loader2 } from "lucide-react";
 import { api } from "~/trpc/react";
-import { authClient } from "~/server/better-auth/client";
 import { Button } from "~/_components/ui/button";
 import { Input } from "~/_components/ui/input";
 import { Field, FieldError, FieldLabel } from "~/_components/ui/field";
@@ -26,16 +24,15 @@ export function OwnerSignUpPage() {
   const searchParams = useSearchParams();
   const redirectPath = searchParams.get("redirect");
 
-  const { data: session, isPending: sessionLoading } = authClient.useSession();
+  // const { data: session, isPending: sessionLoading } = authClient.useSession();
 
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-    watch,
   } = useForm<SignUpFormData>({ resolver: zodResolver(signUpSchema) });
 
-  const watchedValues = watch();
+  // const watchedValues = watch();
 
   const signUp = api.auth.signUp.useMutation({
     onSuccess: async (data, variables) => {
@@ -103,22 +100,16 @@ export function OwnerSignUpPage() {
             </p>
           </div>
 
-          <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: '#f0f0f0' }}>
-            Debug: isSubmitting={String(isSubmitting)}, errors={JSON.stringify(errors)}, values={JSON.stringify(watchedValues)}
-          </div>
+         
 
           <form
             onSubmit={handleSubmit((values) => {
-              console.log("Form submitted with values:", values);
-              console.log("Form is valid:", !Object.keys(errors).length);
               signUp.mutate({
                 name: values.name,
                 email: values.email,
                 password: values.password,
                 role: "HOTEL_ADMIN",
               });
-            }, (errors) => {
-              console.log("Form validation errors:", errors);
             })}
             className="space-y-4"
           >
@@ -167,11 +158,7 @@ export function OwnerSignUpPage() {
             <Button
               type="submit"
               className="w-full"
-              disabled={false}
-              onClick={() => {
-                console.log("Button clicked");
-                alert("Button clicked!");
-              }}
+              disabled={isSubmitting || signUp.isPending}
             >
               {isSubmitting ? (
                 <>

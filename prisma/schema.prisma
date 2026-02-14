@@ -78,6 +78,7 @@ model Hotel {
   city          String?
   state         String?
   country       String  @default("Ethiopia")
+  location      String?
 
   // Settings (Scenario 2 & 4)
   taxStrategy           TaxStrategy @default(STANDARD)
@@ -99,6 +100,7 @@ model Hotel {
   customers Customer[]
   bookings  Booking[]
   resources Resource[] // Scenario 9
+  invites   Invite[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -130,6 +132,8 @@ model User {
   assignedBookings Booking[] @relation("BookingOwner") // Scenario 10
   receivedPayments Payment[] @relation("PaymentReceiver")
 
+  notifications Notification[] @relation("UserNotification")
+
   sessions Session[]
   accounts Account[]
 
@@ -137,6 +141,35 @@ model User {
   updatedAt DateTime @updatedAt
 
   @@map("user")
+}
+
+model Invite {
+  id        String   @id @default(cuid())
+  email     String
+  role      UserRole @default(SALES)
+  hotelId   String
+  hotel     Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("invite")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation("UserNotification", fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   @default("info") // info, success, warning, error
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("notification")
 }
 
 model Customer {
@@ -233,8 +266,8 @@ model Booking {
 
   // Operational (Scenario 10)
   conflictId   String?
-  assignedToId String
-  assignedTo   User    @relation("BookingOwner", fields: [assignedToId], references: [id])
+  assignedToId String?
+  assignedTo   User?   @relation("BookingOwner", fields: [assignedToId], references: [id])
   createdById  String
   createdBy    User    @relation("BookingCreator", fields: [createdById], references: [id])
 

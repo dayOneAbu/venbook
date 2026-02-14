@@ -24,12 +24,12 @@ const buildKeyframes = (
 
   const keyframes: Record<string, Array<string | number>> = {};
   keys.forEach(k => {
-    keyframes[k] = [from[k], ...steps.map(s => s[k])];
+    keyframes[k] = [from[k]!, ...steps.map(s => s[k]!)];
   });
   return keyframes;
 };
 
-const BlurText: React.FC<BlurTextProps> = ({
+export default function BlurText({
   text = '',
   delay = 200,
   className = '',
@@ -42,7 +42,7 @@ const BlurText: React.FC<BlurTextProps> = ({
   easing = (t: number) => t,
   onAnimationComplete,
   stepDuration = 0.35
-}) => {
+}: BlurTextProps) {
   const elements = animateBy === 'words' ? text.split(' ') : text.split('');
   const [inView, setInView] = useState(false);
   const ref = useRef<HTMLParagraphElement>(null);
@@ -50,8 +50,9 @@ const BlurText: React.FC<BlurTextProps> = ({
   useEffect(() => {
     if (!ref.current) return;
     const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
+      (entries) => {
+        const entry = entries[0];
+        if (entry?.isIntersecting) {
           setInView(true);
           observer.unobserve(ref.current as Element);
         }
@@ -118,6 +119,4 @@ const BlurText: React.FC<BlurTextProps> = ({
       })}
     </p>
   );
-};
-
-export default BlurText;
+}

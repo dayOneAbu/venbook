@@ -10,6 +10,7 @@ import { api } from "~/trpc/react";
 import { authClient } from "~/server/better-auth/client";
 import { Button } from "~/_components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/_components/ui/card";
+import Link from "next/link"
 import { Input } from "~/_components/ui/input";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "~/_components/ui/field";
 

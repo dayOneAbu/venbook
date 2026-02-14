@@ -7,6 +7,7 @@ import { ArrowRight, Hotel, MapPin, Search, Star, ShieldCheck, Zap } from "lucid
 import FadeContent from "~/_components/FadeContent";
 import BlurText from "~/_components/BlurText";
 import { authClient } from "~/server/better-auth/client";
+import { LiveFeaturedVenues } from "~/_components/marketplace/LiveFeaturedVenues";
 
 export default function Home() {
   const ownerRedirect = encodeURIComponent("/onboard?role=owner");
@@ -24,46 +25,46 @@ export default function Home() {
       <section className="relative min-h-[90vh] flex items-center pt-20">
         <div className="absolute inset-0 -z-10">
           <Image
-            src="/hero.jpeg"
+            src="/images/hero-ballroom.png"
             alt="Luxury Ballroom"
             fill
-            className="object-cover brightness-[0.55]"
+            className="object-cover brightness-[0.45]"
             priority
           />
-          <div className="absolute inset-0 bg-linear-to-b from-background/70 via-background/20 to-background" />
+          <div className="absolute inset-0 bg-linear-to-b from-background/80 via-transparent to-background" />
         </div>
 
         <div className="container mx-auto px-4 relative z-10">
-          <div className="max-w-4xl space-y-8">
-            <div className="space-y-4">
+          <div className="max-w-4xl space-y-10">
+            <div className="space-y-6">
               <BlurText
-                text="Discover the Perfect Venue for Your Elite Moments"
-                className="text-5xl md:text-7xl font-extrabold tracking-tight text-foreground leading-[1.1]"
+                text="The Premier Destination for Ethiopia's Finest Venues"
+                className="text-6xl md:text-8xl font-extrabold tracking-tight text-white leading-[1.05]"
               />
               <FadeContent delay={0.6}>
-                <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl leading-relaxed">
-                  The most trusted platform in Ethiopia for discovering premium ballrooms, 
-                  conference halls, and exclusive event spaces.
+                <p className="text-xl md:text-2xl text-white/80 max-w-2xl leading-relaxed">
+                  Discover and book the most exclusive ballrooms, conference halls, 
+                  and event spaces in Addis Ababa with seamless digital management.
                 </p>
               </FadeContent>
             </div>
 
-            <FadeContent delay={0.9} className="flex flex-wrap gap-4 pt-4">
-              <Button size="lg" className="h-14 px-8 text-lg rounded-full shadow-lg shadow-primary/20" asChild>
+            <FadeContent delay={0.9} className="flex flex-wrap gap-5 pt-4">
+              <Button size="lg" className="h-16 px-10 text-xl rounded-2xl shadow-2xl shadow-primary/30 transition-all hover:scale-105" asChild>
                 <Link href={exploreHref}>
                   Explore Venues
-                  <Search className="ml-2 h-5 w-5" />
+                  <Search className="ml-3 h-6 w-6" />
                 </Link>
               </Button>
               <Button
                 size="lg"
                 variant="outline"
-                className="h-14 px-8 text-lg rounded-full bg-card/20 backdrop-blur-md border-border text-foreground hover:bg-card/40"
+                className="h-16 px-10 text-xl rounded-2xl bg-white/10 backdrop-blur-xl border-white/20 text-white hover:bg-white/20 transition-all hover:scale-105"
                 asChild
               >
                 <Link href={`/auth/owner/sign-up?redirect=${ownerRedirect}`}>
                   List Your Property
-                  <Hotel className="ml-2 h-5 w-5" />
+                  <Hotel className="ml-3 h-6 w-6" />
                 </Link>
               </Button>
             </FadeContent>
@@ -72,91 +73,128 @@ export default function Home() {
       </section>
 
       {/* Trust & Stats */}
-      <section className="container mx-auto px-4">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 py-12 border-y border-border">
-          <div className="text-center space-y-1">
-            <div className="text-3xl font-bold">500+</div>
-            <div className="text-muted-foreground text-sm uppercase tracking-wider font-medium">Venues</div>
+      <section className="container mx-auto px-4 -mt-32 relative z-20">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-8 rounded-[2.5rem] bg-card/80 backdrop-blur-2xl border border-border shadow-2xl">
+          <div className="text-center space-y-1 p-6 rounded-2xl hover:bg-primary/5 transition-colors">
+            <div className="text-4xl font-black text-primary">500+</div>
+            <div className="text-muted-foreground text-xs uppercase tracking-[0.2em] font-bold">Venues</div>
           </div>
-          <div className="text-center space-y-1">
-            <div className="text-3xl font-bold">10k+</div>
-            <div className="text-muted-foreground text-sm uppercase tracking-wider font-medium">Monthly Users</div>
+          <div className="text-center space-y-1 p-6 rounded-2xl hover:bg-primary/5 transition-colors">
+            <div className="text-4xl font-black text-primary">12k+</div>
+            <div className="text-muted-foreground text-xs uppercase tracking-[0.2em] font-bold">Bookings</div>
           </div>
-          <div className="text-center space-y-1">
-            <div className="text-3xl font-bold">4.9/5</div>
-            <div className="text-muted-foreground text-sm uppercase tracking-wider font-medium">User Rating</div>
+          <div className="text-center space-y-1 p-6 rounded-2xl hover:bg-primary/5 transition-colors">
+            <div className="text-4xl font-black text-primary">4.9/5</div>
+            <div className="text-muted-foreground text-xs uppercase tracking-[0.2em] font-bold">User Rating</div>
           </div>
-          <div className="text-center space-y-1">
-            <div className="text-3xl font-bold">Addis Ababa</div>
-            <div className="text-muted-foreground text-sm uppercase tracking-wider font-medium">Prime Focus</div>
+          <div className="text-center space-y-1 p-6 rounded-2xl hover:bg-primary/5 transition-colors">
+            <div className="text-4xl font-black text-primary">Verified</div>
+            <div className="text-muted-foreground text-xs uppercase tracking-[0.2em] font-bold">Host Standards</div>
           </div>
         </div>
       </section>
 
-      {/* dual Segment Focus */}
-      <section className="container mx-auto px-4">
-        <div className="grid md:grid-cols-2 gap-12">
-          {/* Seeker Side */}
-          <FadeContent delay={0.2} className="relative group p-8 rounded-3xl border border-border bg-card/60 hover:bg-card transition-colors overflow-hidden">
-             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                <MapPin className="h-32 w-32" />
-             </div>
-             <div className="relative z-10 space-y-6">
-                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                  <Star className="h-6 w-6 fill-current" />
+      {/* Features Grid */}
+      <section id="features" className="container mx-auto px-4 py-12">
+        <div className="text-center max-w-3xl mx-auto mb-20 space-y-4">
+          <h2 className="text-4xl md:text-5xl font-bold tracking-tight">Everything you need to host or find the perfect event</h2>
+          <p className="text-muted-foreground text-lg">
+            VenBook bridges the gap between luxury hospitality and modern event planning.
+          </p>
+        </div>
+        <div className="grid md:grid-cols-3 gap-8">
+            {[
+              { icon: MapPin, title: "Curated Selection", desc: "Hand-picked premium venues across Ethiopia's major hubs." },
+              { icon: Zap, title: "Instant Booking", desc: "Real-time availability and smart inquiry management system." },
+              { icon: ShieldCheck, title: "Secure Payments", desc: "Compliant billing with full support for local tax strategies." }
+            ].map((feature, i) => (
+              <FadeContent key={i} delay={i * 0.15} className="p-8 rounded-[2rem] border border-border bg-card/50 hover:border-primary/50 transition-all group">
+                <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-6 group-hover:scale-110 transition-transform">
+                  <feature.icon className="h-7 w-7" />
                 </div>
-                <h3 className="text-3xl font-bold">Planning an Event?</h3>
-                <p className="text-muted-foreground text-lg leading-relaxed">
-                  Browse through Addis Ababa&apos;s most exclusive venues. From intimate weddings 
-                  to grand corporate summits, find the space that matches your vision.
-                </p>
-                <ul className="space-y-3">
-                  <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <ShieldCheck className="h-4 w-4 text-green-500" />
+                <h4 className="text-xl font-bold mb-3">{feature.title}</h4>
+                <p className="text-muted-foreground leading-relaxed">{feature.desc}</p>
+              </FadeContent>
+            ))}
+        </div>
+      </section>
+
+      {/* dual Segment Focus */}
+      <section className="container mx-auto px-4 py-12">
+        <div className="grid lg:grid-cols-2 gap-12">
+          {/* Seeker Side */}
+          <FadeContent delay={0.2} className="relative group p-10 rounded-[3rem] border border-border bg-card/60 hover:bg-card transition-all overflow-hidden shadow-xl">
+             <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-[0.07] transition-opacity">
+                <MapPin className="h-64 w-64" />
+             </div>
+             <div className="relative z-10 space-y-8">
+                <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                  <Star className="h-7 w-7 fill-current" />
+                </div>
+                <div className="space-y-4">
+                  <h3 className="text-4xl font-extrabold tracking-tight">Planning an Event?</h3>
+                  <p className="text-muted-foreground text-xl leading-relaxed">
+                    Browse through Addis Ababa&apos;s most exclusive venues. From intimate weddings 
+                    to grand corporate summits, find the space that matches your vision.
+                  </p>
+                </div>
+                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <li className="flex items-center gap-3 text-sm font-medium text-foreground">
+                    <div className="h-5 w-5 rounded-full bg-green-500/10 flex items-center justify-center">
+                      <ShieldCheck className="h-3 w-3 text-green-500" />
+                    </div>
                     Verified listings only
                   </li>
-                  <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Zap className="h-4 w-4 text-amber-500" />
+                  <li className="flex items-center gap-3 text-sm font-medium text-foreground">
+                    <div className="h-5 w-5 rounded-full bg-amber-500/10 flex items-center justify-center">
+                      <Zap className="h-3 w-3 text-amber-500" />
+                    </div>
                     Real-time availability
                   </li>
                 </ul>
-                <Button variant="link" className="p-0 text-lg group/btn" asChild>
+                <Button size="lg" variant="link" className="p-0 text-xl font-bold group/btn hover:no-underline" asChild>
                   <Link href="/venues">
                     Start Browsing
-                    <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover/btn:translate-x-1" />
+                    <ArrowRight className="ml-2 h-6 w-6 transition-transform group-hover/btn:translate-x-2" />
                   </Link>
                 </Button>
              </div>
           </FadeContent>
 
           {/* Owner Side */}
-          <FadeContent delay={0.4} className="relative group p-8 rounded-3xl border border-border bg-primary/10 text-foreground hover:bg-primary/15 transition-colors overflow-hidden">
-             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                <Hotel className="h-32 w-32" />
+          <FadeContent delay={0.4} className="relative group p-10 rounded-[3rem] border border-transparent bg-primary/10 text-foreground hover:bg-primary/15 transition-all overflow-hidden shadow-xl">
+             <div className="absolute top-0 right-0 p-4 opacity-[0.05] group-hover:opacity-[0.1] transition-opacity">
+                <Hotel className="h-64 w-64" />
              </div>
-             <div className="relative z-10 space-y-6">
-                <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center text-primary">
-                  <Hotel className="h-6 w-6" />
+             <div className="relative z-10 space-y-8">
+                <div className="h-14 w-14 rounded-2xl bg-primary/20 flex items-center justify-center text-primary">
+                  <Hotel className="h-7 w-7" />
                 </div>
-                <h3 className="text-3xl font-bold">Hotel & Venue Owners</h3>
-                <p className="text-muted-foreground text-lg leading-relaxed">
-                  Modernize your booking operations. Manage calendars, payments, and 
-                  inquiries on Ethiopia&apos;s first dedicated venue SaaS platform.
-                </p>
-                <ul className="space-y-3">
-                  <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <ShieldCheck className="h-4 w-4 text-blue-400" />
-                    Custom subdomain for your hotel
+                <div className="space-y-4">
+                  <h3 className="text-4xl font-extrabold tracking-tight text-primary">Hotel & Venue Owners</h3>
+                  <p className="text-muted-foreground text-xl leading-relaxed">
+                    Modernize your booking operations. Manage calendars, payments, and 
+                    inquiries on Ethiopia&apos;s first dedicated venue SaaS platform.
+                  </p>
+                </div>
+                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <li className="flex items-center gap-3 text-sm font-medium text-foreground">
+                    <div className="h-5 w-5 rounded-full bg-blue-400/10 flex items-center justify-center">
+                      <ShieldCheck className="h-3 w-3 text-blue-400" />
+                    </div>
+                    Custom dashboard
                   </li>
-                  <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Zap className="h-4 w-4 text-purple-400" />
-                    Automated tax & billing
+                  <li className="flex items-center gap-3 text-sm font-medium text-foreground">
+                    <div className="h-5 w-5 rounded-full bg-purple-400/10 flex items-center justify-center">
+                      <Zap className="h-3 w-3 text-purple-400" />
+                    </div>
+                    Automated tax compliance
                   </li>
                 </ul>
-                <Button variant="link" className="p-0 text-lg group/btn" asChild>
+                <Button size="lg" variant="link" className="p-0 text-xl font-bold text-primary group/btn hover:no-underline" asChild>
                   <Link href={`/auth/owner/sign-up?redirect=${ownerRedirect}`}>
-                    Register Your Venue
-                    <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover/btn:translate-x-1" />
+                    Register Your Property
+                    <ArrowRight className="ml-2 h-6 w-6 transition-transform group-hover/btn:translate-x-2" />
                   </Link>
                 </Button>
              </div>
@@ -165,48 +203,15 @@ export default function Home() {
       </section>
 
       {/* Featured Grid */}
-      <section className="container mx-auto px-4 bg-muted py-24 rounded-[3rem]">
-        <div className="max-w-xl mb-16 space-y-4">
-          <h2 className="text-4xl font-bold tracking-tight">Exceptional Spaces</h2>
-          <p className="text-muted-foreground text-lg">
-            Our most popular venues this month, selected for their service excellence and atmosphere.
+      <section className="container mx-auto px-4 bg-muted/40 py-24 rounded-[4rem] border border-muted">
+        <div className="text-center max-w-2xl mx-auto mb-20 space-y-4">
+          <h2 className="text-4xl md:text-5xl font-black tracking-tight">Exceptional Spaces</h2>
+          <p className="text-muted-foreground text-xl">
+            Selected for their service excellence and unmatched atmosphere.
           </p>
         </div>
         
-        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3].map((i) => (
-            <FadeContent key={i} delay={i * 0.1}>
-              <div className="group overflow-hidden rounded-3xl border border-border bg-card transition-all hover:shadow-2xl">
-                <div className="aspect-4/3 w-full bg-muted relative">
-                   <div className="absolute inset-0 flex items-center justify-center bg-muted group-hover:scale-105 transition-transform duration-500">
-                      <span className="text-muted-foreground text-sm font-medium">Luxury Venue {i} Photo</span>
-                   </div>
-                   <div className="absolute top-4 left-4">
-                      <span className="bg-card/90 backdrop-blur px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest text-primary">
-                        Featured
-                      </span>
-                   </div>
-                </div>
-                <div className="p-6 space-y-3">
-                  <h3 className="text-xl font-bold">Grand Ballroom {i}</h3>
-                  <div className="flex items-center text-muted-foreground text-sm gap-1">
-                    <MapPin className="h-4 w-4" />
-                    <span>Bole, Addis Ababa</span>
-                  </div>
-                  <div className="pt-4 flex items-center justify-between">
-                    <div className="flex flex-col">
-                      <span className="text-xs text-muted-foreground uppercase tracking-wider">Starting from</span>
-                      <span className="font-bold text-lg text-primary">$450 <span className="text-sm font-normal text-muted-foreground">/day</span></span>
-                    </div>
-                    <Button variant="secondary" size="sm" className="rounded-full px-5" asChild>
-                      <Link href={`/venues/${i}`}>View</Link>
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </FadeContent>
-          ))}
-        </div>
+        <LiveFeaturedVenues />
       </section>
     </div>
   );

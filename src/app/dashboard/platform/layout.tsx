@@ -1,5 +1,6 @@
 import { AppSidebar } from "~/_components/app-sidebar"
 import { ModeToggle } from "~/_components/mode-toggle"
+import { NotificationBell } from "~/_components/notification-bell"
 import { Separator } from "~/_components/ui/separator"
 import {
   SidebarInset,
@@ -37,7 +38,10 @@ export default async function PlatformLayout({
           <div className="text-center font-bold">
              Platform Control Center
           </div>
-          <ModeToggle />
+          <div className="flex items-center gap-2">
+            <NotificationBell />
+            <ModeToggle />
+          </div>
         </header>
         <div className="flex-1 space-y-4 p-4 pt-6">
             {children}

@@ -12,6 +12,7 @@ import { Button } from "~/_components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/_components/ui/card";
 import { Input } from "~/_components/ui/input";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "~/_components/ui/field";
+import Link from "next/link"
 
 const signInSchema = z.object({
   email: z.string().email("Please enter a valid email address"),

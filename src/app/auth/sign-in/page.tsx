@@ -6,9 +6,14 @@ function getFirst(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
-export default function Page({ searchParams }: { searchParams?: SearchParams }) {
-  const role = getFirst(searchParams?.role) ?? "customer";
-  const redirectParam = getFirst(searchParams?.redirect);
+export default async function Page({ 
+  searchParams 
+}: { 
+  searchParams: Promise<SearchParams> 
+}) {
+  const resolvedParams = await searchParams;
+  const role = getFirst(resolvedParams?.role) ?? "customer";
+  const redirectParam = getFirst(resolvedParams?.redirect);
 
   const base =
     role === "owner"

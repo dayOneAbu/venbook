@@ -2,13 +2,31 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "~/_components/ui/card"
 import { authClient } from "~/server/better-auth/client"
+import { api } from "~/trpc/react"
 import FadeContent from "~/_components/FadeContent"
-import { Building2, Users, CalendarCheck2, CreditCard, Activity } from "lucide-react"
+import { CalendarCheck2, MapPin, CreditCard, Users2 } from "lucide-react"
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("en-ET", {
+    style: "currency",
+    currency: "ETB",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
 
 export default function Page() {
   const { data: session } = authClient.useSession()
-  const isSuperAdmin = session?.user?.role === "SUPER_ADMIN"
   const userName = session?.user?.name ?? "User"
+
+  const { data: bookings } = api.booking.getAll.useQuery()
+  const { data: venues } = api.venue.getAll.useQuery()
+  const { data: customers } = api.customer.getAll.useQuery()
+  const { data: billing } = api.billing.getSummary.useQuery()
+
+  const totalBookings = bookings?.length ?? 0
+  const confirmedBookings = bookings?.filter(b => b.status === "CONFIRMED" || b.status === "TENTATIVE").length ?? 0
+  const activeVenues = venues?.length ?? 0
+  const totalCustomers = customers?.length ?? 0
 
   return (
     <div className="space-y-8">
@@ -18,9 +36,7 @@ export default function Page() {
              Hello, {userName} 👋
            </h1>
            <p className="text-muted-foreground">
-             {isSuperAdmin 
-              ? "Welcome to the platform control center. Here's what's happening across VenBook."
-              : "Welcome to your hotel management dashboard. Monitor your operations and venues."}
+             Welcome to your hotel management dashboard. Here&apos;s a snapshot of your operations.
            </p>
         </div>
       </FadeContent>
@@ -28,60 +44,54 @@ export default function Page() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              {isSuperAdmin ? "Total Hotels" : "Total Bookings"}
-            </CardTitle>
-            {isSuperAdmin ? <Building2 className="h-4 w-4 text-muted-foreground" /> : <CalendarCheck2 className="h-4 w-4 text-muted-foreground" />}
+            <CardTitle className="text-sm font-medium">Total Bookings</CardTitle>
+            <CalendarCheck2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{isSuperAdmin ? "12" : "48"}</div>
+            <div className="text-2xl font-bold">{totalBookings}</div>
             <p className="text-xs text-muted-foreground">
-              {isSuperAdmin ? "+2 new this week" : "+12% from last month"}
+              {confirmedBookings} confirmed / tentative
             </p>
           </CardContent>
         </Card>
         
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              {isSuperAdmin ? "Platform Users" : "Active Venues"}
-            </CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Active Venues</CardTitle>
+            <MapPin className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{isSuperAdmin ? "1,204" : "6"}</div>
+            <div className="text-2xl font-bold">{activeVenues}</div>
             <p className="text-xs text-muted-foreground">
-              {isSuperAdmin ? "+180 new signups" : "All venues active"}
+              Registered venues
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Monthly Revenue
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">All-Time Revenue</CardTitle>
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{isSuperAdmin ? "$12,450.00" : "$4,231.89"}</div>
+            <div className="text-2xl font-bold">
+              {billing ? formatCurrency(billing.allTimeRevenue) : "—"}
+            </div>
             <p className="text-xs text-muted-foreground">
-              +20.1% from last month
+              {billing ? `${formatCurrency(billing.pendingRevenue)} pending` : "Loading..."}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              System Status
-            </CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Customers</CardTitle>
+            <Users2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">Healthy</div>
+            <div className="text-2xl font-bold">{totalCustomers}</div>
             <p className="text-xs text-muted-foreground">
-              All services operational
+              Registered clients
             </p>
           </CardContent>
         </Card>
@@ -91,9 +101,7 @@ export default function Page() {
         <div className="rounded-xl border border-border bg-card p-8 text-card-foreground shadow-sm">
            <h2 className="text-xl font-semibold mb-2">Getting Started with VenBook</h2>
            <p className="text-muted-foreground mb-4">
-             {isSuperAdmin 
-              ? "As a platform admin, you can manage hotels, verify properties, and monitor global usage through the sidebar navigation."
-              : "As a hotel owner, use the sidebar to manage your venues, staff members, and forthcoming booking requests."}
+             Use the sidebar to manage your venues, staff members, customers, and bookings. Visit Settings to configure your tax and pricing rules.
            </p>
            <div className="flex gap-4">
               <div className="h-24 flex-1 rounded-lg bg-muted/30 border border-dashed border-border flex items-center justify-center text-sm text-muted-foreground italic">

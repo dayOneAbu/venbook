@@ -37,11 +37,11 @@ import {
 
 const customerFormSchema = z.object({
   companyName: z.string().min(1, "Name is required"),
-  contactName: z.string().optional(),
+  contactName: z.string().default(""),
   email: z.string().email("Invalid email").optional().or(z.literal("")),
-  phone: z.string().optional(),
-  tinNumber: z.string().optional(),
-  type: z.enum(["INDIVIDUAL", "COMPANY"]).default("INDIVIDUAL"),
+  phone: z.string().default(""),
+  tinNumber: z.string().default(""),
+  type: z.enum(["INDIVIDUAL", "COMPANY"]),
 });
 
 type CustomerFormValues = z.infer<typeof customerFormSchema>;
@@ -50,7 +50,8 @@ export function AddCustomerSheet({ onCustomerCreated }: { onCustomerCreated?: ()
   const [open, setOpen] = useState(false);
 
   const form = useForm<CustomerFormValues>({
-    resolver: zodResolver(customerFormSchema),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+    resolver: zodResolver(customerFormSchema) as any,
     defaultValues: {
       companyName: "",
       contactName: "",
@@ -76,10 +77,10 @@ export function AddCustomerSheet({ onCustomerCreated }: { onCustomerCreated?: ()
   const onSubmit = (values: CustomerFormValues) => {
     createCustomer.mutate({
       companyName: values.companyName,
-      contactName: values.contactName?.trim() || undefined,
-      email: values.email?.trim() || undefined,
-      phone: values.phone?.trim() || undefined,
-      tinNumber: values.tinNumber?.trim() || undefined,
+      contactName: values.contactName?.trim() ?? undefined,
+      email: values.email?.trim() ?? undefined,
+      phone: values.phone?.trim() ?? undefined,
+      tinNumber: values.tinNumber?.trim() ?? undefined,
       type: values.type,
     });
   };
@@ -104,7 +105,7 @@ export function AddCustomerSheet({ onCustomerCreated }: { onCustomerCreated?: ()
             onSubmit={form.handleSubmit(onSubmit)}
             className="space-y-6 py-6"
           >
-            <FormField
+            <FormField<CustomerFormValues, "type">
               control={form.control}
               name="type"
               render={({ field }) => (
@@ -126,7 +127,7 @@ export function AddCustomerSheet({ onCustomerCreated }: { onCustomerCreated?: ()
               )}
             />
 
-            <FormField
+            <FormField<CustomerFormValues, "companyName">
               control={form.control}
               name="companyName"
               render={({ field }) => (
@@ -140,7 +141,7 @@ export function AddCustomerSheet({ onCustomerCreated }: { onCustomerCreated?: ()
               )}
             />
 
-            <FormField
+            <FormField<CustomerFormValues, "contactName">
               control={form.control}
               name="contactName"
               render={({ field }) => (
@@ -155,7 +156,7 @@ export function AddCustomerSheet({ onCustomerCreated }: { onCustomerCreated?: ()
             />
 
             <div className="grid grid-cols-2 gap-4">
-              <FormField
+              <FormField<CustomerFormValues, "email">
                 control={form.control}
                 name="email"
                 render={({ field }) => (
@@ -183,7 +184,7 @@ export function AddCustomerSheet({ onCustomerCreated }: { onCustomerCreated?: ()
               />
             </div>
 
-            <FormField
+            <FormField<CustomerFormValues, "tinNumber">
               control={form.control}
               name="tinNumber"
               render={({ field }) => (

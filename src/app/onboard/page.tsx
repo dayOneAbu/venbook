@@ -11,19 +11,35 @@ import { CustomerFinishForm } from "./_components/customer-finish-form";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "~/_components/ui/card";
 import { Progress } from "~/_components/ui/progress";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 import BlurText from "~/_components/BlurText";
 import FadeContent from "~/_components/FadeContent";
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { authClient } from "~/server/better-auth/client";
 
-export default function OnboardPage() {
+function OnboardingContent() {
   const searchParams = useSearchParams();
   const roleParam = (searchParams.get("role") ?? "").toLowerCase();
   const { data: session, isPending } = authClient.useSession();
 
   const hotelStep = useOnboardingStore((state) => state.step);
   const customerStep = useCustomerOnboardingStore((state) => state.step);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isPending && session?.user?.isOnboarded) {
+      if (session.user.role === "HOTEL_ADMIN") {
+        router.replace("/admin");
+      } else if (session.user.role === "CUSTOMER") {
+        router.replace("/venues");
+      } else if (session.user.role === "SUPER_ADMIN") {
+        router.replace("/dashboard/platform");
+      }
+    }
+  }, [session, isPending, router]);
 
   const flow =
     roleParam === "owner" || roleParam === "hotel_admin"
@@ -38,7 +54,7 @@ export default function OnboardPage() {
   const step = flow === "owner" ? hotelStep : customerStep;
   const progress = (step / totalSteps) * 100;
 
-  if (!roleParam && isPending) {
+  if (isPending || (!roleParam && !session?.user)) {
     return (
       <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">
         Loading onboarding...
@@ -95,5 +111,17 @@ export default function OnboardPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function OnboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">
+        Loading...
+      </div>
+    }>
+      <OnboardingContent />
+    </Suspense>
   );
 }

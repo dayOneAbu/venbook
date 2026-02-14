@@ -100,10 +100,10 @@ export function EditCustomerSheet({
     updateCustomer.mutate({
       id: customer.id,
       companyName: values.companyName,
-      contactName: values.contactName?.trim() || undefined,
-      email: values.email?.trim() || undefined,
-      phone: values.phone?.trim() || undefined,
-      tinNumber: values.tinNumber?.trim() || undefined,
+      contactName: values.contactName?.trim() ?? undefined,
+      email: values.email?.trim() ?? undefined,
+      phone: values.phone?.trim() ?? undefined,
+      tinNumber: values.tinNumber?.trim() ?? undefined,
       type: values.type,
     });
   };
