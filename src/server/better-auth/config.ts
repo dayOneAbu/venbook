@@ -4,9 +4,10 @@ import { username } from "better-auth/plugins";
 import { admin } from "better-auth/plugins/admin";
 
 import { db } from "~/server/db";
+import { env } from "~/env";
 
 export const auth = betterAuth({
-  baseURL: process.env.BETTER_AUTH_BASE_URL,
+  baseURL: env.BETTER_AUTH_BASE_URL,
   database: prismaAdapter(db, {
     provider: "postgresql", // or "sqlite" or "mysql"
   }),
