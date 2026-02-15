@@ -6,6 +6,7 @@ import { admin } from "better-auth/plugins/admin";
 import { db } from "~/server/db";
 
 export const auth = betterAuth({
+  baseURL: process.env.BETTER_AUTH_BASE_URL,
   database: prismaAdapter(db, {
     provider: "postgresql", // or "sqlite" or "mysql"
   }),
@@ -50,7 +51,7 @@ export const auth = betterAuth({
         attributes: {
           domain: process.env.NEXT_PUBLIC_ROOT_DOMAIN 
             ? `.${process.env.NEXT_PUBLIC_ROOT_DOMAIN.split(':')[0]}` 
-            : ".localhost",
+            : undefined,
         },
       },
     },
