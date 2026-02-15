@@ -5,6 +5,7 @@ import { authClient } from "~/server/better-auth/client"
 import { api } from "~/trpc/react"
 import FadeContent from "~/_components/FadeContent"
 import { CalendarCheck2, MapPin, CreditCard, Users2 } from "lucide-react"
+import { MarketplaceReadiness } from "~/_components/dashboard/MarketplaceReadiness"
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("en-ET", {
@@ -39,6 +40,10 @@ export default function Page() {
              Welcome to your hotel management dashboard. Here&apos;s a snapshot of your operations.
            </p>
         </div>
+      </FadeContent>
+
+      <FadeContent delay={0.2}>
+        <MarketplaceReadiness />
       </FadeContent>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

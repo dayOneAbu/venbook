@@ -57,33 +57,16 @@ export function AppSidebar({ context = "tenant", ...props }: AppSidebarProps) {
   
   const navItems = context === "platform" ? platformNav : tenantNav
 
-  // Determine if we are in "Direct Path Mode" (accessing via /dashboard/...)
-  // or "Subdomain Mode" (prefix is handled by middleware)
-  const isDirectPathMode = pathname?.startsWith("/dashboard")
-  
   // Build the relative prefix
-  let basePrefix = ""
-  if (isDirectPathMode) {
-    if (context === "platform") {
-      basePrefix = "/dashboard/platform"
-    } else {
-      // Extract the tenant slug from /dashboard/tenant/[slug]/admin/...
-      const parts = pathname.split("/")
-      const tenantSlug = parts[3] // dashboard[1], tenant[2], [slug][3]
-      basePrefix = `/dashboard/tenant/${tenantSlug}/admin`
-    }
-  }
+  const basePrefix = context === "platform" ? "/dashboard/platform" : "/dashboard/tenant"
 
   const getUrl = (url: string) => {
-    if (!isDirectPathMode) return url
-    
-    // In direct path mode, we need to map the "logical" URLs back to physical paths
     if (context === "platform") {
       if (url === "/") return basePrefix
       return `${basePrefix}${url}`
     } else {
-      // url is e.g. /admin/staff. basePrefix is /dashboard/tenant/slug/admin
-      // logical /admin maps to physical /dashboard/tenant/slug/admin
+      // url is e.g. /admin/staff. 
+      // logical /admin maps to physical /dashboard/tenant
       if (url === "/admin") return basePrefix
       return url.replace("/admin", basePrefix)
     }
@@ -103,7 +86,7 @@ export function AppSidebar({ context = "tenant", ...props }: AppSidebarProps) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
-              <Link href={isDirectPathMode ? "/" : "/"}>
+            <Link href="/">
                 <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                   <GalleryVerticalEnd className="size-4" />
                 </div>

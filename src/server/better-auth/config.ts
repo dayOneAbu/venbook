@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { username } from "better-auth/plugins";
+import { admin } from "better-auth/plugins/admin";
 
 import { db } from "~/server/db";
 
@@ -38,7 +39,8 @@ export const auth = betterAuth({
     username({
       minUsernameLength: 5,
       maxUsernameLength: 100
-    })
+    }),
+    admin()
   ],
   socialProviders: {
   },

@@ -47,19 +47,24 @@ export function OwnerSignInPage() {
         // best-effort cookie sync
       }
 
-      const hostname = window.location.hostname;
-      const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "localhost:3000";
-      const isRootDomain = hostname === rootDomain.split(":")[0];
 
       let nextPath = "/admin";
+      const userRole = data.user.role;
+      const isCustomer = userRole === "CUSTOMER";
+      const isSuperAdmin = userRole === "SUPER_ADMIN";
 
-      if (data.user && !data.user.isOnboarded) {
-        nextPath = "/onboard?role=owner";
-      } else if (redirectPath) {
+      if (data.user && !data.user.isOnboarded && !isSuperAdmin) {
+        const roleParam = isCustomer ? "customer" : "owner";
+        nextPath = `/onboard?role=${roleParam}`;
+        if (redirectPath) {
+          nextPath += `&redirect=${encodeURIComponent(redirectPath)}`;
+        }
+      } else if (redirectPath && (!isSuperAdmin || !redirectPath.startsWith("/onboard"))) {
         nextPath = redirectPath;
-      } else if (isRootDomain && data.subdomain) {
-        // If on root domain, redirect to physical dashboard path
-        nextPath = `/dashboard/tenant/${data.subdomain}/admin`;
+      } else if (isCustomer) {
+        nextPath = "/venues";
+      } else {
+        nextPath = "/dashboard/tenant";
       }
 
       router.replace(nextPath);
@@ -74,7 +79,7 @@ export function OwnerSignInPage() {
         router.replace("/venues");
       } else {
         // Default redirect for owners/staff
-        router.replace("/admin");
+        router.replace("/dashboard/tenant");
       }
     }
   }, [redirectPath, router, session?.user, sessionLoading]);

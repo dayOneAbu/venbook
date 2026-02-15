@@ -1,45 +1,79 @@
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
+import { createTRPCRouter, protectedProcedure, publicProcedure } from "~/server/api/trpc";
+import { TRPCError } from "@trpc/server";
 
 export const inviteRouter = createTRPCRouter({
-  getAll: protectedProcedure
-    .input(z.object({ hotelId: z.string() }))
-    .query(async ({ ctx, input }) => {
-      return await ctx.db.invite.findMany({
-        where: { hotelId: input.hotelId },
-        orderBy: { createdAt: "desc" },
-      });
-    }),
+  getAll: protectedProcedure.query(async ({ ctx }) => {
+    const hotelId = ctx.session.user.hotelId;
+    if (!hotelId) throw new TRPCError({ code: "UNAUTHORIZED" });
+
+    return ctx.db.invite.findMany({
+      where: { hotelId: hotelId },
+      orderBy: { createdAt: "desc" },
+    });
+  }),
 
   create: protectedProcedure
     .input(
       z.object({
         email: z.string().email(),
-        role: z.enum(["SALES", "OPERATIONS", "FINANCE"]),
-        hotelId: z.string(),
+        role: z.enum(["SALES", "OPERATIONS", "FINANCE", "HOTEL_ADMIN"]),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const token = Math.random().toString(36).substring(2, 15);
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
+      const hotelId = ctx.session.user.hotelId;
+      if (!hotelId) throw new TRPCError({ code: "UNAUTHORIZED" });
 
-      return await ctx.db.invite.create({
-        data: {
-          email: input.email,
-          role: input.role,
-          hotelId: input.hotelId,
-          token,
-          expiresAt,
-        },
-      });
+      if (ctx.session.user.role !== "HOTEL_ADMIN") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only admins can invite staff.",
+        });
+      }
+
+      return ctx.services.invite.createInvite(hotelId, input.email, input.role);
     }),
 
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return await ctx.db.invite.delete({
+      const hotelId = ctx.session.user.hotelId;
+      if (!hotelId) throw new TRPCError({ code: "UNAUTHORIZED" });
+
+      if (ctx.session.user.role !== "HOTEL_ADMIN") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only admins can cancel invites.",
+        });
+      }
+
+      // Ensure invite belongs to this hotel
+      const invite = await ctx.db.invite.findFirst({
+        where: { id: input.id, hotelId },
+      });
+
+      if (!invite) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+
+      return ctx.db.invite.delete({
         where: { id: input.id },
       });
+    }),
+
+  // Public procedure to redeem an invite
+  accept: publicProcedure
+    .input(z.object({
+      token: z.string(),
+      name: z.string().min(1),
+      password: z.string().min(8),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      return ctx.services.invite.acceptInvite(
+        input.token,
+        input.name,
+        input.password,
+        ctx.headers
+      );
     }),
 });

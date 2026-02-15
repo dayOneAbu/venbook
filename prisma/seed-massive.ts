@@ -11,6 +11,7 @@ const pool = new Pool({
   host: config.host ?? "localhost",
   port: Number(config.port) ?? 5432,
   database: config.database ?? "venbook",
+  ssl: true,
 });
 
 const CITIES = ["Addis Ababa", "Hawassa", "Bishoftu", "Bahir Dar", "Gondar", "Mekelle", "Dire Dawa", "Adama", "Jimma", "Arba Minch"];
@@ -22,7 +23,7 @@ function generateHotelThemes(count: number) {
     const city = CITIES[i % CITIES.length];
     const type = HOTEL_TYPES[i % HOTEL_TYPES.length];
     const name = `Grand ${city} ${type} ${i}`;
-    const subdomain = `hotel-${i}-${city.toLowerCase().replace(/\s+/g, "")}`;
+    const subdomain = `hotel-${i}-${city?.toLowerCase().replace(/\s+/g, "")}`;
     themes.push({ name, subdomain, location: city });
   }
   return themes;
@@ -62,6 +63,15 @@ async function main() {
       [`u-admin`, "System Admin", "admin@venbook.com", "SUPER_ADMIN", true]
     );
 
+    // Ensure account for super admin
+    const adminHash = "119483710dd9905835d41691c2de1b59:eaefd909f006976f5632e70c95c486706b66a947ef5690ccca5023ece7380e039a42bc9ee4902ec50a88d15bf3f0e053641b0091a5e4d8acb9e4020ed65152c0";
+    await client.query(
+      `INSERT INTO "account" (id, "accountId", "providerId", "userId", password, "createdAt", "updatedAt") 
+       VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+       ON CONFLICT (id) DO NOTHING`,
+      [`acc-u-admin`, "admin@venbook.com", "credential", `u-admin`, adminHash]
+    );
+
     // 2. Create Hotels and Staff
     const hotelIds: string[] = [];
     const staffIds: string[] = [];
@@ -90,6 +100,14 @@ async function main() {
         [`u-owner-${theme.subdomain}`, `${theme.name} Owner`, ownerEmail, "HOTEL_ADMIN", hotelId, true]
       );
       
+      // Create Owner Account
+      await client.query(
+        `INSERT INTO "account" (id, "accountId", "providerId", "userId", password, "createdAt", "updatedAt") 
+         VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+         ON CONFLICT (id) DO NOTHING`,
+        [`acc-u-owner-${theme.subdomain}`, ownerEmail, "credential", `u-owner-${theme.subdomain}`, adminHash]
+      );
+      
       const ownerRes = await client.query<{ id: string }>(`SELECT id FROM "user" WHERE email = $1`, [ownerEmail]);
       const ownerId = ownerRes.rows[0]!.id;
       
@@ -106,6 +124,14 @@ async function main() {
            VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
            ON CONFLICT (email) DO UPDATE SET role = $4, "hotelId" = $5, "emailVerified" = $6`,
           [staffId, `${theme.name} Staff ${i}`, staffEmail, role, hotelId, true]
+        );
+        
+        // Create Staff Account
+        await client.query(
+          `INSERT INTO "account" (id, "accountId", "providerId", "userId", password, "createdAt", "updatedAt") 
+           VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+           ON CONFLICT (id) DO NOTHING`,
+          [`acc-${staffId}`, staffEmail, "credential", staffId, adminHash]
         );
         
         const staffRes = await client.query<{ id: string }>(`SELECT id FROM "user" WHERE email = $1`, [staffEmail]);
@@ -155,6 +181,14 @@ async function main() {
            ON CONFLICT (email) DO NOTHING`,
           [`u-customer-${i}`, `Contact ${i}`, customerUserEmail, "CUSTOMER", true]
       );
+
+      // Create Customer Account
+      await client.query(
+        `INSERT INTO "account" (id, "accountId", "providerId", "userId", password, "createdAt", "updatedAt") 
+         VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+         ON CONFLICT (id) DO NOTHING`,
+        [`acc-u-customer-${i}`, customerUserEmail, "credential", `u-customer-${i}`, adminHash]
+      );
     }
 
     // 4. Generate Varied Bookings (Some confirmed, some pending, etc.)
@@ -199,18 +233,98 @@ async function main() {
         );
     }
 
-    // 5. Generate Invites (Optional but good for completeness)
-    console.log("📧 Generating some Invites...");
-    for (let i = 1; i <= 30; i++) {
-        const randomHotelId = hotelIds[i % hotelIds.length]!;
-        const inviteId = `inv-${i}`;
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + 7);
-        await client.query(
-            `INSERT INTO "invite" (id, email, role, "hotelId", token, "expiresAt", "createdAt", "updatedAt") 
-             VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())`,
-            [inviteId, `invite-${i}@example.com`, "SALES", randomHotelId, `token-${i}`, expiresAt]
+    // 5. Generate Amenities
+    console.log("🛠️ Generating Amenities...");
+    const amenityNames = ["WiFi", "Projector", "Sound System", "Catering", "Parking", "AC", "Stage", "Flipchart"];
+    const amenityIds: string[] = [];
+    for (const name of amenityNames) {
+        const id = `amenity-${name.toLowerCase().replace(/\s+/g, "-")}`;
+        await client.query(`INSERT INTO "amenity" (id, name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING`, [id, name]);
+        amenityIds.push(id);
+    }
+
+    // Link Amenities to Venues
+    const venuesRes = await client.query<{ id: string }>(`SELECT id FROM "venue"`);
+    for (const venue of venuesRes.rows) {
+        // Randomly assign 2-5 amenities per venue
+        const shuffled = [...amenityIds].sort(() => 0.5 - Math.random());
+        const selected = shuffled.slice(0, 2 + Math.floor(Math.random() * 4));
+        for (const amenityId of selected) {
+            await client.query(
+                `INSERT INTO "venue_amenity" ("venueId", "amenityId") VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+                [venue.id, amenityId]
+            );
+        }
+    }
+
+    // 6. Generate Resources per Hotel
+    console.log("📦 Generating Resources...");
+    for (const hotelId of hotelIds) {
+        const resources = [
+            { name: "Extra Chairs", qty: 200 },
+            { name: "Wireless Mic", qty: 4 },
+            { name: "Laptop", qty: 2 },
+            { name: "Coffee Machine", qty: 1 }
+        ];
+        for (const res of resources) {
+            await client.query(
+                `INSERT INTO "resource" (id, "hotelId", name, quantity) VALUES ($1, $2, $3, $4)`,
+                [`res-${hotelId}-${res.name.toLowerCase().replace(/\s+/g, "-")}`, hotelId, res.name, res.qty]
+            );
+        }
+    }
+
+    // 7. Generate Payments and Booking Resources
+    console.log("💰 Generating Payments and linking Resources to Bookings...");
+    const bookingsRes = await client.query<{ id: string, status: string, "totalAmount": number, "hotelId": string }>(
+        `SELECT id, status, "totalAmount", "hotelId" FROM "booking"`
+    );
+    for (const booking of bookingsRes.rows) {
+        // Only pay for Confirmed/Executed/Completed
+        if (["CONFIRMED", "EXECUTED", "COMPLETED"].includes(booking.status)) {
+            const paymentId = `p-pay-${booking.id}`;
+            const methods = ["CASH", "BANK_TRANSFER", "TELEBIRR", "MPESA"];
+            const method = methods[Math.floor(Math.random() * methods.length)];
+            await client.query(
+                `INSERT INTO "payment" (id, "bookingId", amount, method, "createdAt", "updatedAt") 
+                 VALUES ($1, $2, $3, $4, NOW(), NOW())`,
+                [paymentId, booking.id, booking.totalAmount, method]
+            );
+        }
+
+        // Assign some resources to bookings
+        const hotelResources = await client.query<{ id: string }>(
+            `SELECT id FROM "resource" WHERE "hotelId" = $1 LIMIT 2`, [booking.hotelId]
         );
+        for (const hRes of hotelResources.rows) {
+            await client.query(
+                `INSERT INTO "booking_resource" ("bookingId", "resourceId", quantity) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+                [booking.id, hRes.id, 1 + Math.floor(Math.random() * 5)]
+            );
+        }
+    }
+
+    // 8. Generate Notifications and Audit Logs
+    console.log("🔔 Generating Notifications and Audit Logs...");
+    for (const hotelId of hotelIds) {
+        const hotelStaff = await client.query<{ id: string }>(
+            `SELECT id FROM "user" WHERE "hotelId" = $1 LIMIT 5`, [hotelId]
+        );
+        for (const staff of hotelStaff.rows) {
+            // Notifications
+            await client.query(
+                `INSERT INTO "notification" (id, "userId", title, message, type, "createdAt", "updatedAt") 
+                 VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
+                [`notif-${staff.id}-${Date.now()}`, staff.id, "New Booking Received", "A new booking has been created for your venue.", "info"]
+            );
+
+            // Audit Logs
+            await client.query(
+                `INSERT INTO "audit_log" (id, "actorId", "hotelId", action, resource, details, "createdAt") 
+                 VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+                [`audit-${staff.id}-${Date.now()}`, staff.id, hotelId, "CREATE_BOOKING", "booking", "Staff created a new booking manually.",]
+            );
+        }
     }
 
     await client.query("COMMIT");

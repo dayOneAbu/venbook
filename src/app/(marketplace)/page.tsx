@@ -5,7 +5,7 @@ import Image from "next/image";
 import { Button } from "~/_components/ui/button";
 import { ArrowRight, Hotel, MapPin, Search, Star, ShieldCheck, Zap } from "lucide-react";
 import FadeContent from "~/_components/FadeContent";
-import BlurText from "~/_components/BlurText";
+import BlurText from "~/_components/ui/BlurText";
 import { authClient } from "~/server/better-auth/client";
 import { LiveFeaturedVenues } from "~/_components/marketplace/LiveFeaturedVenues";
 

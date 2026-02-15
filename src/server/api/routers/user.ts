@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
+import { TRPCError } from "@trpc/server";
 
 export const userRouter = createTRPCRouter({
     getAll: protectedProcedure.query(async ({ ctx }) => {
@@ -54,43 +55,7 @@ export const userRouter = createTRPCRouter({
             });
         }),
 
-    addStaff: protectedProcedure
-        .input(
-            z.object({
-                name: z.string().min(1),
-                email: z.string().email(),
-                role: z.enum(["HOTEL_ADMIN", "SALES", "OPERATIONS", "FINANCE"]),
-            })
-        )
-        .mutation(async ({ ctx, input }) => {
-            const hotelId = ctx.session.user.hotelId;
-            if (!hotelId) {
-                throw new Error("You must belong to a hotel to add staff.");
-            }
 
-            // RBAC check: Only HOTEL_ADMIN can add staff
-            if (ctx.session.user.role !== "HOTEL_ADMIN") {
-                throw new Error("Only admins can add staff members.");
-            }
-
-            // Check if user already exists
-            const existingUser = await ctx.db.user.findUnique({
-                where: { email: input.email },
-            });
-
-            if (existingUser) {
-                throw new Error("User with this email already exists.");
-            }
-
-            return ctx.db.user.create({
-                data: {
-                    name: input.name,
-                    email: input.email,
-                    role: input.role,
-                    hotelId: hotelId,
-                },
-            });
-        }),
 
     update: protectedProcedure
         .input(
@@ -103,12 +68,15 @@ export const userRouter = createTRPCRouter({
         .mutation(async ({ ctx, input }) => {
             const hotelId = ctx.session.user.hotelId;
             if (!hotelId) {
-                throw new Error("Unauthorized");
+                throw new TRPCError({ code: "UNAUTHORIZED", message: "Unauthorized" });
             }
 
             // RBAC check: Only HOTEL_ADMIN can update other users
             if (ctx.session.user.role !== "HOTEL_ADMIN" && ctx.session.user.id !== input.id) {
-                throw new Error("Only admins can update other staff members.");
+                throw new TRPCError({
+                    code: "FORBIDDEN",
+                    message: "Only admins can update other staff members.",
+                });
             }
 
             // Ensure user belongs to same hotel
@@ -120,7 +88,7 @@ export const userRouter = createTRPCRouter({
             });
 
             if (!userToUpdate) {
-                throw new Error("User not found or access denied.");
+                throw new TRPCError({ code: "NOT_FOUND", message: "User not found or access denied." });
             }
 
             return ctx.db.user.update({
@@ -167,16 +135,22 @@ export const userRouter = createTRPCRouter({
         .mutation(async ({ ctx, input }) => {
             const hotelId = ctx.session.user.hotelId;
             if (!hotelId) {
-                throw new Error("Unauthorized");
+                throw new TRPCError({ code: "UNAUTHORIZED", message: "Unauthorized" });
             }
 
             // RBAC check: Only HOTEL_ADMIN can delete users
             if (ctx.session.user.role !== "HOTEL_ADMIN") {
-                throw new Error("Only admins can delete staff members.");
+                throw new TRPCError({
+                    code: "FORBIDDEN",
+                    message: "Only admins can delete staff members.",
+                });
             }
 
             if (input.id === ctx.session.user.id) {
-                throw new Error("You cannot delete yourself.");
+                throw new TRPCError({
+                    code: "PRECONDITION_FAILED",
+                    message: "You cannot delete yourself.",
+                });
             }
 
             // Ensure the user to delete belongs to the same hotel
@@ -188,7 +162,7 @@ export const userRouter = createTRPCRouter({
             });
 
             if (!userToDelete) {
-                throw new Error("User not found or access denied.");
+                throw new TRPCError({ code: "NOT_FOUND", message: "User not found or access denied." });
             }
 
             return ctx.db.user.delete({

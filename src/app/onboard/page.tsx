@@ -14,7 +14,7 @@ import { Progress } from "~/_components/ui/progress";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-import BlurText from "~/_components/BlurText";
+import BlurText from "~/_components/ui/BlurText";
 import FadeContent from "~/_components/FadeContent";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
@@ -30,13 +30,18 @@ function OnboardingContent() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!isPending && session?.user?.isOnboarded) {
+    if (isPending || !session?.user) return;
+
+    if (session.user.role === "SUPER_ADMIN") {
+      router.replace("/dashboard/platform");
+      return;
+    }
+
+    if (session.user.isOnboarded) {
       if (session.user.role === "HOTEL_ADMIN") {
         router.replace("/admin");
       } else if (session.user.role === "CUSTOMER") {
         router.replace("/venues");
-      } else if (session.user.role === "SUPER_ADMIN") {
-        router.replace("/dashboard/platform");
       }
     }
   }, [session, isPending, router]);

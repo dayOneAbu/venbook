@@ -13,6 +13,10 @@ import { ZodError } from "zod";
 
 import { auth } from "~/server/better-auth";
 import { db } from "~/server/db";
+import { HotelService } from "~/server/services/hotel.service";
+import { InviteService } from "~/server/services/invite.service";
+import { VenueService } from "~/server/services/venue.service";
+import { CustomerService } from "~/server/services/customer.service";
 
 /**
  * 1. CONTEXT
@@ -30,9 +34,18 @@ export const createTRPCContext = async (opts: { headers: Headers }) => {
   const session = await auth.api.getSession({
     headers: opts.headers,
   });
+  const isImpersonating = !!session?.session?.impersonatedBy;
+  
   return {
     db,
     session,
+    isImpersonating,
+    services: {
+      hotel: new HotelService(db),
+      invite: new InviteService(db),
+      venue: new VenueService(db),
+      customer: new CustomerService(db),
+    },
     ...opts,
   };
 };

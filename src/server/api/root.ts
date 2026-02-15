@@ -12,6 +12,8 @@ import { amenityRouter } from "~/server/api/routers/amenity";
 import { resourceRouter } from "~/server/api/routers/resource";
 import { inviteRouter } from "~/server/api/routers/invite";
 import { notificationRouter } from "~/server/api/routers/notification";
+import { auditRouter } from "~/server/api/routers/audit";
+import { exportRouter } from "~/server/api/routers/export";
 
 /**
  * This is the primary router for your server.
@@ -31,6 +33,8 @@ export const appRouter = createTRPCRouter({
   resource: resourceRouter,
   invite: inviteRouter,
   notification: notificationRouter,
+  audit: auditRouter,
+  export: exportRouter,
 });
 
 // export type definition of API

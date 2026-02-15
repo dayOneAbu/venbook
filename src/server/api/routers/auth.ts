@@ -3,15 +3,22 @@ import { TRPCError } from "@trpc/server";
 
 import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
 import { auth } from "~/server/better-auth";
+import { checkRateLimit } from "~/server/lib/rate-limit";
 
 export const authRouter = createTRPCRouter({
   signIn: publicProcedure
     .input(z.object({ email: z.string().email(), password: z.string() }))
     .mutation(async ({ input, ctx }) => {
-    
-      try {
+      // Rate limit: 5 sign-in attempts per email per 15 minutes
+      const rl = checkRateLimit(`signin:${input.email}`, 5, 15 * 60 * 1000);
+      if (!rl.allowed) {
+        throw new TRPCError({
+          code: "TOO_MANY_REQUESTS",
+          message: `Too many sign-in attempts. Try again in ${Math.ceil(rl.retryAfterMs / 60000)} minutes.`,
+        });
+      }
 
-        // Use better-auth's server API for sign in
+      try {
         const result = await auth.api.signInEmail({
           body: {
             email: input.email,
@@ -20,7 +27,6 @@ export const authRouter = createTRPCRouter({
           headers: ctx.headers,
         });
       
-        // Fetch the assigned hotel's subdomain if it exists
         const userWithHotel = await ctx.db.user.findUnique({
           where: { id: result.user.id },
           select: {
@@ -30,18 +36,16 @@ export const authRouter = createTRPCRouter({
           }
         });
       
-        // Return success - cookies are handled by better-auth via the API route
         return {
           success: true,
           user: result.user,
           subdomain: userWithHotel?.hotel?.subdomain ?? null,
         };
       } catch (error) {
-      
+        console.error("[Auth] Sign-in failed:", error);
         throw new TRPCError({
           code: "UNAUTHORIZED",
-          message:
-            error instanceof Error ? error.message : "Invalid email or password",
+          message: "Invalid email or password",
         });
       }
     }),
@@ -49,20 +53,36 @@ export const authRouter = createTRPCRouter({
     .input(
       z.object({
         email: z.string().email(),
-        password: z.string().min(8),
+        password: z
+          .string()
+          .min(8, "Password must be at least 8 characters")
+          .regex(
+            /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+            "Password must include uppercase, lowercase, and a number"
+          ),
         name: z.string().min(1),
-        role: z.enum(["CUSTOMER", "HOTEL_ADMIN"]).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // Rate limit: 3 sign-ups per IP per hour
+      const ip = ctx.headers.get("x-forwarded-for") ?? ctx.headers.get("x-real-ip") ?? "unknown";
+      const rl = checkRateLimit(`signup:${ip}`, 3, 60 * 60 * 1000);
+      if (!rl.allowed) {
+        throw new TRPCError({
+          code: "TOO_MANY_REQUESTS",
+          message: `Too many sign-up attempts. Try again in ${Math.ceil(rl.retryAfterMs / 60000)} minutes.`,
+        });
+      }
+
       try {
-        // Use better-auth's server API for sign up
+        // All new users default to CUSTOMER.
+        // HOTEL_ADMIN is assigned later via the hotel.setup onboarding flow.
         const result = await auth.api.signUpEmail({
           body: {
             email: input.email,
             password: input.password,
             name: input.name,
-            role: input.role,
+            role: "CUSTOMER",
           },
           headers: ctx.headers,
         });
@@ -72,12 +92,10 @@ export const authRouter = createTRPCRouter({
           user: result.user,
         };
       } catch (error) {
+        console.error("[Auth] Sign-up failed:", error);
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message:
-            error instanceof Error
-              ? error.message
-              : "Failed to create account",
+          message: "Failed to create account. The email may already be in use.",
         });
       }
     }),

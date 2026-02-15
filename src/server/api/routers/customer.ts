@@ -8,10 +8,7 @@ export const customerRouter = createTRPCRouter({
         const hotelId = ctx.session.user.hotelId;
         if (!hotelId) return [];
 
-        return ctx.db.customer.findMany({
-            where: { hotelId },
-            orderBy: { createdAt: "desc" },
-        });
+        return ctx.services.customer.getAll(hotelId);
     }),
 
     getById: protectedProcedure
@@ -20,9 +17,7 @@ export const customerRouter = createTRPCRouter({
             const hotelId = ctx.session.user.hotelId;
             if (!hotelId) return null;
 
-            return ctx.db.customer.findFirst({
-                where: { id: input.id, hotelId },
-            });
+            return ctx.services.customer.getById(input.id, hotelId);
         }),
 
     create: protectedProcedure
@@ -43,12 +38,18 @@ export const customerRouter = createTRPCRouter({
                 });
             }
 
-            return ctx.db.customer.create({
-                data: {
-                    ...input,
-                    hotelId,
+            const allowedRoles: string[] = ["HOTEL_ADMIN", "SALES", "OPERATIONS"];
+            if (!ctx.session.user.role || !allowedRoles.includes(ctx.session.user.role)) {
+                throw new TRPCError({ code: "FORBIDDEN", message: "You do not have permission to create customers." });
+            }
+
+            return ctx.services.customer.create(
+                { ...input, hotelId },
+                {
+                    isImpersonating: ctx.isImpersonating,
+                    impersonatedBy: ctx.session.session.impersonatedBy,
                 }
-            });
+            );
         }),
 
     update: protectedProcedure
@@ -65,20 +66,22 @@ export const customerRouter = createTRPCRouter({
             const hotelId = ctx.session.user.hotelId;
             if (!hotelId) throw new TRPCError({ code: "UNAUTHORIZED" });
 
-            const { id, ...data } = input;
-
-            const customer = await ctx.db.customer.findFirst({
-                where: { id, hotelId }
-            });
-
-            if (!customer) {
-                throw new TRPCError({ code: "NOT_FOUND", message: "Customer not found" });
+            const allowedRoles: string[] = ["HOTEL_ADMIN", "SALES", "OPERATIONS"];
+            if (!ctx.session.user.role || !allowedRoles.includes(ctx.session.user.role)) {
+                throw new TRPCError({ code: "FORBIDDEN", message: "You do not have permission to update customers." });
             }
 
-            return ctx.db.customer.update({
-                where: { id },
-                data
-            });
+            const { id, ...data } = input;
+
+            return ctx.services.customer.update(
+                id,
+                hotelId,
+                data,
+                {
+                    isImpersonating: ctx.isImpersonating,
+                    impersonatedBy: ctx.session.session.impersonatedBy,
+                }
+            );
         }),
 
     delete: protectedProcedure
@@ -87,16 +90,18 @@ export const customerRouter = createTRPCRouter({
             const hotelId = ctx.session.user.hotelId;
             if (!hotelId) throw new TRPCError({ code: "UNAUTHORIZED" });
 
-            const customer = await ctx.db.customer.findFirst({
-                where: { id: input.id, hotelId }
-            });
-
-            if (!customer) {
-                throw new TRPCError({ code: "NOT_FOUND", message: "Customer not found" });
+            // Only HOTEL_ADMIN can delete customers
+            if (ctx.session.user.role !== "HOTEL_ADMIN") {
+                throw new TRPCError({ code: "FORBIDDEN", message: "Only hotel admins can delete customers." });
             }
 
-            return ctx.db.customer.delete({
-                where: { id: input.id }
-            });
+            return ctx.services.customer.delete(
+                input.id,
+                hotelId,
+                {
+                    isImpersonating: ctx.isImpersonating,
+                    impersonatedBy: ctx.session.session.impersonatedBy,
+                }
+            );
         }),
 });

@@ -12,6 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/_components/ui/dropdown-menu";
+import { ModeToggle } from "~/_components/mode-toggle";
 import { useState } from "react";
 
 export function Navbar() {
@@ -42,44 +43,50 @@ export function Navbar() {
 
         <div className="flex items-center gap-4">
           {session ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 border border-border">
-                  <User className="h-5 w-5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 rounded-xl">
-                <DropdownMenuLabel>
-                  <p className="text-sm font-bold">{session.user.name}</p>
-                  <p className="text-xs text-muted-foreground font-normal">{session.user.email}</p>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/profile" className="cursor-pointer">Profile</Link>
-                </DropdownMenuItem>
-                {session.user.role === "OWNER" || session.user.role === "STAFT" ? (
+            <div className="flex items-center gap-3">
+              <ModeToggle />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 border border-border">
+                    <User className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 rounded-xl">
+                  <DropdownMenuLabel>
+                    <p className="text-sm font-bold">{session.user.name}</p>
+                    <p className="text-xs text-muted-foreground font-normal">{session.user.email}</p>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link href={`/dashboard/tenant/skylight/admin`} className="cursor-pointer font-bold text-primary">Admin Dashboard</Link>
+                    <Link href="/profile" className="cursor-pointer">Profile</Link>
                   </DropdownMenuItem>
-                ) : null}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut} className="text-destructive cursor-pointer">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Logout
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  {session.user.role === "OWNER" || session.user.role === "STAFT" ? (
+                    <DropdownMenuItem asChild>
+                      <Link href={`/dashboard/tenant/skylight/admin`} className="cursor-pointer font-bold text-primary">Admin Dashboard</Link>
+                    </DropdownMenuItem>
+                  ) : null}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut} className="text-destructive cursor-pointer">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           ) : (
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" className="rounded-full hidden sm:flex" asChild>
-                <Link href="/auth/customer/sign-in">
-                  <LogIn className="mr-2 h-4 w-4" />
-                  Login
-                </Link>
-              </Button>
-              <Button className="rounded-full" asChild>
-                <Link href="/auth/customer/sign-up">Get Started</Link>
-              </Button>
+            <div className="flex items-center gap-3">
+              <ModeToggle />
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" className="rounded-full hidden sm:flex" asChild>
+                  <Link href="/auth/customer/sign-in">
+                    <LogIn className="mr-2 h-4 w-4" />
+                    Login
+                  </Link>
+                </Button>
+                <Button className="rounded-full" asChild>
+                  <Link href="/auth/customer/sign-up">Get Started</Link>
+                </Button>
+              </div>
             </div>
           )}
           

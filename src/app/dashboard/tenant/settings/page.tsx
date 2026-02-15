@@ -34,6 +34,8 @@ import {
 } from "~/_components/ui/form";
 import FadeContent from "~/_components/FadeContent";
 import { Separator } from "~/_components/ui/separator";
+import { SecurityLogs } from "./security-logs";
+import { DataExport } from "./data-export";
 
 // --- Hotel Profile Form ---
 const profileSchema = z.object({
@@ -474,6 +476,15 @@ export default function SettingsPage() {
 
       <FadeContent delay={0.4}>
         <OperationalSettingsForm />
+      </FadeContent>
+
+      <Separator />
+
+      <FadeContent delay={0.6}>
+        <div className="space-y-6">
+          <SecurityLogs />
+          <DataExport />
+        </div>
       </FadeContent>
     </div>
   );

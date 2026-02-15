@@ -7,48 +7,27 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "~/_components/ui/sidebar"
-import { AdminPageTitle } from "./_components/admin-page-title"
+import { AdminPageTitle } from "~/_components/dashboard/admin-page-title"
 
-import { db } from "~/server/db";
 import { auth } from "~/server/better-auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 export default async function DashboardLayout({
   children,
-  params,
 }: {
   children: React.ReactNode;
-  params: Promise<{ subdomain: string }>;
 }) {
   const session = (await auth.api.getSession({
     headers: await headers(),
   })) as { user: { id: string; role: string; isOnboarded: boolean; hotelId?: string } } | null;
 
-  if (session?.user?.role !== "SUPER_ADMIN") {
-    if (!session?.user?.isOnboarded) {
-      redirect("/onboard");
-    }
+  if (!session?.user) {
+    redirect("/auth/owner/sign-in");
+  }
 
-    const { subdomain } = await params;
-    
-    if (!session?.user?.hotelId) {
-       redirect("/onboard");
-    }
-
-    // Verify subdomain matches user's hotel
-    const hotel = await db.hotel.findFirst({
-      where: { 
-        id: session.user.hotelId,
-        subdomain: subdomain
-      },
-      select: { id: true }
-    });
-
-    if (!hotel) {
-      // User is logged into a hotel but trying to access the WRONG subdomain
-      // Redirect to their correct dashboard or unauthorized page
-      // For now, redirect to onboard which will then redirect to their correct dashboard if already onboarded
+  if (session.user.role !== "SUPER_ADMIN") {
+    if (!session.user.isOnboarded || !session.user.hotelId) {
       redirect("/onboard");
     }
   }

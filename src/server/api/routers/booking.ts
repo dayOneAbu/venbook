@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
-import { BookingStatus, BookingSource, TaxStrategy } from "~/generated/prisma";
+import { BookingStatus, BookingSource } from "~/generated/prisma";
+import { BookingService } from "~/server/services/booking.service";
 
 
 export const bookingRouter = createTRPCRouter({
@@ -50,150 +51,28 @@ export const bookingRouter = createTRPCRouter({
             })
         )
         .mutation(async ({ ctx, input }) => {
-            const userHotelId = ctx.session.user.hotelId;
-            const isCustomer = ctx.session.user.role === "CUSTOMER";
-
-            // 1. Fetch Venue & Hotel Settings for Pricing & Capacity
-            const venue = await ctx.db.venue.findFirst({
-                where: { id: input.venueId },
-                include: { hotel: true },
-            });
-
-            if (!venue) {
-                throw new TRPCError({ code: "NOT_FOUND", message: "Venue not found" });
-            }
-
-            const hotelId = venue.hotelId;
-
-            // Security check: if user is staff, ensure they belong to this hotel
-            if (!isCustomer && userHotelId !== hotelId && ctx.session.user.role !== "SUPER_ADMIN") {
-                throw new TRPCError({
-                    code: "UNAUTHORIZED",
-                    message: "You can only create bookings for your own hotel.",
-                });
-            }
-
-            // Scenario 4: Capacity Check (Soft vs Hard limit)
-            const maxCapacity = Math.max(
-                venue.capacityBanquet ?? 0,
-                venue.capacityTheater ?? 0,
-                venue.capacityReception ?? 0,
-                venue.capacityUshape ?? 0
-            );
-
-            if (maxCapacity > 0 && input.guestCount > maxCapacity && !venue.hotel.allowCapacityOverride) {
-                throw new TRPCError({
-                    code: "PRECONDITION_FAILED",
-                    message: `Guest count ${input.guestCount} exceeds venue capacity ${maxCapacity}`
-                });
-            }
-
-            // 2. Conflict Detection
-            const conflicts = await ctx.db.booking.findMany({
-                where: {
-                    venueId: input.venueId,
-                    status: { notIn: [BookingStatus.CANCELLED, BookingStatus.INQUIRY] },
-                    OR: [
-                        { startTime: { gte: input.startTime, lt: input.endTime } },
-                        { endTime: { gt: input.startTime, lte: input.endTime } },
-                        { startTime: { lte: input.startTime }, endTime: { gte: input.endTime } }
-                    ]
-                },
-            });
-
-            let status: BookingStatus = isCustomer ? BookingStatus.INQUIRY : BookingStatus.INQUIRY;
-            // Actually, staff usually create TENTATIVE or CONFIRMED, but let's default to INQUIRY for safety or handle it via source
-            if (input.source === BookingSource.STAFF) {
-                status = BookingStatus.INQUIRY; // Or TENTATIVE
-            }
-
-            let conflictId: string | null = null;
-
-            if (conflicts.length > 0) {
-                status = BookingStatus.CONFLICT;
-                conflictId = conflicts[0]?.id ?? null;
-            }
-
-            // 3. Scenario 7: Snapshot Pricing Calculation
-            const basePrice = input.manualPriceParams?.basePrice
-                ? Number(input.manualPriceParams.basePrice)
-                : Number(venue.basePrice ?? 0);
-
-            const serviceChargeRate = Number(venue.hotel.serviceChargeRate);
-            const vatRate = Number(venue.hotel.vatRate);
-            const strategy = venue.hotel.taxStrategy;
-
-            const serviceChargeAmount = basePrice * (serviceChargeRate / 100);
-
-            let taxableAmount = basePrice;
-            if (strategy === TaxStrategy.COMPOUND) {
-                taxableAmount += serviceChargeAmount;
-            }
-
-            const vatAmount = taxableAmount * (vatRate / 100);
-            const totalAmount = basePrice + serviceChargeAmount + vatAmount;
-
-            // 4. Create the Booking
-            const bookingNumber = `BK-${Date.now().toString().slice(-6)}`;
-
-            return ctx.db.booking.create({
-                data: {
-                    bookingNumber,
-                    hotelId,
-                    venueId: input.venueId,
-                    customerId: input.customerId,
+            const bookingService = new BookingService(ctx.db);
+            return bookingService.createBooking(
+                {
+                    ...input,
                     createdById: ctx.session.user.id,
-                    assignedToId: isCustomer ? undefined : ctx.session.user.id,
-
-                    eventName: input.eventName,
-                    eventType: input.eventType,
-                    eventDate: input.startTime,
-                    startTime: input.startTime,
-                    endTime: input.endTime,
-                    guestCount: input.guestCount,
-                    guaranteedPax: input.guaranteedPax ?? input.guestCount,
-                    layoutType: input.layoutType,
-
-                    // Snapshot Pricing & Tax (ERCA Compliance)
-                    basePrice,
-                    serviceCharge: serviceChargeAmount,
-                    vat: vatAmount,
-                    totalAmount,
-                    currency: venue.hotel.currency,
-                    vatRateSnapshot: vatRate,
-                    serviceChargeRateSnapshot: serviceChargeRate,
-                    taxStrategySnapshot: strategy,
-
-                    // Portal & Source
-                    isPublicBooking: input.isPublicBooking,
-                    source: input.source,
-                    specialRequests: input.specialRequests,
-                    dietaryRequests: input.dietaryRequests,
-
-                    status,
-                    conflictId,
-                    notes: input.notes,
                 },
-            });
+                ctx.session.user.role,
+                ctx.session.user.hotelId,
+                ctx.isImpersonating
+            );
         }),
 
     getById: protectedProcedure
         .input(z.object({ id: z.string() }))
         .query(async ({ ctx, input }) => {
-            const hotelId = ctx.session.user.hotelId;
-            if (!hotelId) return null;
-
-            return ctx.db.booking.findFirst({
-                where: {
-                    id: input.id,
-                    hotelId,
-                },
-                include: {
-                    venue: true,
-                    customer: true,
-                    assignedTo: true,
-                },
-            });
+            const bookingService = new BookingService(ctx.db);
+            return bookingService.getBookingById(
+                input.id,
+                ctx.session.user.id,
+                ctx.session.user.role,
+                ctx.session.user.hotelId
+            );
         }),
 
     update: protectedProcedure
@@ -254,7 +133,17 @@ export const bookingRouter = createTRPCRouter({
                 }
             }
 
-            return ctx.db.booking.update({
+            // Security & Auditing
+            if (ctx.session.user.role === "SUPER_ADMIN") {
+                if (!ctx.isImpersonating) {
+                    throw new TRPCError({
+                        code: "FORBIDDEN",
+                        message: "Super Admins must use Impersonation Mode to update bookings.",
+                    });
+                }
+            }
+
+            const updatedBooking = await ctx.db.booking.update({
                 where: { id: input.id },
                 data: {
                     eventName: input.eventName,
@@ -269,6 +158,21 @@ export const bookingRouter = createTRPCRouter({
                     conflictId,
                 },
             });
+
+            if (ctx.isImpersonating && ctx.session.session.impersonatedBy) {
+                await ctx.db.auditLog.create({
+                    data: {
+                        actorId: ctx.session.session.impersonatedBy,
+                        hotelId,
+                        action: "UPDATE_BOOKING",
+                        resource: "booking",
+                        resourceId: updatedBooking.id,
+                        details: `Updated booking ${booking.bookingNumber}`,
+                    },
+                });
+            }
+
+            return updatedBooking;
         }),
 
     updateStatus: protectedProcedure
@@ -308,10 +212,30 @@ export const bookingRouter = createTRPCRouter({
                 throw new TRPCError({ code: "NOT_FOUND", message: "Booking not found" });
             }
 
-            return ctx.db.booking.update({
+            // Security & Auditing
+            if (ctx.session.user.role === "SUPER_ADMIN" && !ctx.isImpersonating) {
+                throw new TRPCError({ code: "FORBIDDEN", message: "Super Admins must use Impersonation Mode." });
+            }
+
+            const cancelledBooking = await ctx.db.booking.update({
                 where: { id: input.id },
                 data: { status: BookingStatus.CANCELLED },
             });
+
+            if (ctx.isImpersonating && ctx.session.session.impersonatedBy) {
+                await ctx.db.auditLog.create({
+                    data: {
+                        actorId: ctx.session.session.impersonatedBy,
+                        hotelId,
+                        action: "CANCEL_BOOKING", // or UPDATE_STATUS
+                        resource: "booking",
+                        resourceId: input.id,
+                        details: "Cancelled booking",
+                    },
+                });
+            }
+
+            return cancelledBooking;
         }),
 
     delete: protectedProcedure
@@ -328,8 +252,28 @@ export const bookingRouter = createTRPCRouter({
                 throw new TRPCError({ code: "NOT_FOUND", message: "Booking not found" });
             }
 
-            return ctx.db.booking.delete({
+            // Security & Auditing
+            if (ctx.session.user.role === "SUPER_ADMIN" && !ctx.isImpersonating) {
+                throw new TRPCError({ code: "FORBIDDEN", message: "Super Admins must use Impersonation Mode." });
+            }
+
+            const deletedBooking = await ctx.db.booking.delete({
                 where: { id: input.id },
             });
+
+            if (ctx.isImpersonating && ctx.session.session.impersonatedBy) {
+                await ctx.db.auditLog.create({
+                    data: {
+                        actorId: ctx.session.session.impersonatedBy,
+                        hotelId,
+                        action: "DELETE_BOOKING",
+                        resource: "booking",
+                        resourceId: input.id,
+                        details: "Deleted booking",
+                    },
+                });
+            }
+
+            return deletedBooking;
         }),
 });

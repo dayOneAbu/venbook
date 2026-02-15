@@ -1,15 +1,18 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import Link from "next/link";
+import Image from "next/image";
 import { Hotel, Loader2 } from "lucide-react";
 import { api } from "~/trpc/react";
+import { authClient } from "~/server/better-auth/client";
 import { Button } from "~/_components/ui/button";
 import { Input } from "~/_components/ui/input";
-import { Field, FieldError, FieldLabel } from "~/_components/ui/field";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "~/_components/ui/field";
+import Link from "next/link";
 
 const signUpSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -24,7 +27,7 @@ export function OwnerSignUpPage() {
   const searchParams = useSearchParams();
   const redirectPath = searchParams.get("redirect");
 
-  // const { data: session, isPending: sessionLoading } = authClient.useSession();
+  const { data: session, isPending: sessionLoading } = authClient.useSession();
 
   const {
     register,
@@ -32,58 +35,57 @@ export function OwnerSignUpPage() {
     formState: { errors, isSubmitting },
   } = useForm<SignUpFormData>({ resolver: zodResolver(signUpSchema) });
 
-  // const watchedValues = watch();
-
   const signUp = api.auth.signUp.useMutation({
     onSuccess: async (data, variables) => {
-      // First try to sync cookies via better-auth API route
       try {
         await fetch("/api/auth/sign-up/email", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(variables),
         });
-      } catch (error) {
-        console.error("Cookie sync failed:", error);
-        // Continue anyway - cookies are best-effort
+      } catch {
+        // best-effort cookie sync
       }
 
-      // Handle navigation
-      if (data.user && !data.user.isOnboarded) {
-        router.push("/onboard?role=owner");
+      let nextPath = "/onboard?role=owner";
+
+      if (data.user && data.user.isOnboarded) {
+        nextPath = redirectPath ?? "/admin";
       } else if (redirectPath) {
-        router.push(redirectPath);
-      } else {
-        router.push("/admin");
+        // Carry over redirect to onboarding if needed
+        nextPath = `/onboard?role=owner&redirect=${encodeURIComponent(redirectPath)}`;
       }
-    },
-    onError: (error) => {
-      console.error("Sign up failed:", error);
+
+      router.replace(nextPath);
     },
   });
 
-  // Temporarily disabled session checks for debugging
-  // useEffect(() => {
-  //   if (!sessionLoading && session?.user) {
-  //     if (redirectPath) router.replace(redirectPath);
-  //     else if (session.user.role === "CUSTOMER") router.replace("/venues");
-  //     else router.replace("/admin");
-  //   }
-  // }, [redirectPath, router, session?.user, sessionLoading]);
+  useEffect(() => {
+    if (!sessionLoading && session?.user) {
+      if (redirectPath) {
+        router.replace(redirectPath);
+      } else if (session.user.role === "CUSTOMER") {
+        router.replace("/venues");
+      } else {
+        router.replace("/admin");
+      }
+    }
+  }, [redirectPath, router, session?.user, sessionLoading]);
 
-  // if (sessionLoading) {
-  //   return (
-  //     <div className="flex min-h-screen items-center justify-center">
-  //     <Loader2 className="h-8 w-8 animate-spin text-primary" />
-  //   </div>
-  //   );
-  // }
+  if (sessionLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
-  // if (session?.user) return null;
+  if (session?.user) return null;
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-slate-50/50 p-8">
-      <div className="w-full max-w-md">
+    <div className="relative flex min-h-screen w-full flex-col md:flex-row">
+      <div className="flex w-full flex-col items-center justify-center bg-background p-8 md:w-1/2">
+        <div className="w-full max-w-md">
           <div className="mb-8 flex items-center gap-2 font-bold text-2xl">
             <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center text-white">
               <Hotel className="h-6 w-6" />
@@ -100,89 +102,89 @@ export function OwnerSignUpPage() {
             </p>
           </div>
 
-         
-
           <form
-            onSubmit={handleSubmit((values) => {
-              signUp.mutate({
-                name: values.name,
-                email: values.email,
-                password: values.password,
-                role: "HOTEL_ADMIN",
-              });
-            })}
-            className="space-y-4"
-          >
-            {signUp.error && (
-              <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                {signUp.error.message}
-              </div>
+            onSubmit={handleSubmit((values) =>
+              signUp.mutate(values)
             )}
-
-            <Field data-invalid={!!errors.name}>
-              <FieldLabel htmlFor="name">Full Name</FieldLabel>
-              <Input
-                id="name"
-                type="text"
-                placeholder="John Doe"
-                {...register("name")}
-                disabled={isSubmitting || signUp.isPending}
-              />
-              <FieldError errors={errors.name ? [errors.name] : undefined} />
-            </Field>
-
-            <Field data-invalid={!!errors.email}>
-              <FieldLabel htmlFor="email">Email Address</FieldLabel>
-              <Input
-                id="email"
-                type="email"
-                placeholder="email@example.com"
-                {...register("email")}
-                disabled={isSubmitting || signUp.isPending}
-              />
-              <FieldError errors={errors.email ? [errors.email] : undefined} />
-            </Field>
-
-            <Field data-invalid={!!errors.password}>
-              <FieldLabel htmlFor="password">Password</FieldLabel>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••••••"
-                {...register("password")}
-                disabled={isSubmitting || signUp.isPending}
-              />
-              <FieldError errors={errors.password ? [errors.password] : undefined} />
-            </Field>
-
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={isSubmitting || signUp.isPending}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating account...
-                </>
-              ) : (
-                "Continue"
+          >
+            <FieldGroup>
+              {signUp.error && (
+                <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                  {signUp.error.message}
+                </div>
               )}
-            </Button>
-          </form>
 
-          <p className="mt-6 text-center text-sm text-muted-foreground">
-            Already have an account?{" "}
-            <Link
-              href={`/auth/owner/sign-in${redirectPath ? `?redirect=${encodeURIComponent(redirectPath)}` : ""}`}
-              className="font-medium text-primary hover:underline"
-            >
-              Sign in here
-            </Link>
-            .
-          </p>
+              <Field data-invalid={!!errors.name}>
+                <FieldLabel htmlFor="name">Full Name</FieldLabel>
+                <Input
+                  id="name"
+                  type="text"
+                  placeholder="John Doe"
+                  {...register("name")}
+                  disabled={isSubmitting || signUp.isPending}
+                />
+                <FieldError errors={errors.name ? [errors.name] : undefined} />
+              </Field>
+
+              <Field data-invalid={!!errors.email}>
+                <FieldLabel htmlFor="email">Email</FieldLabel>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="me@example.com"
+                  disabled={isSubmitting || signUp.isPending}
+                  {...register("email")}
+                />
+                <FieldError errors={errors.email ? [errors.email] : undefined} />
+              </Field>
+
+              <Field data-invalid={!!errors.password}>
+                <FieldLabel htmlFor="password">Password</FieldLabel>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••••••"
+                  disabled={isSubmitting || signUp.isPending}
+                  {...register("password")}
+                />
+                <FieldError errors={errors.password ? [errors.password] : undefined} />
+              </Field>
+
+              <Field>
+                <Button type="submit" className="w-full" disabled={isSubmitting || signUp.isPending}>
+                  {isSubmitting || signUp.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating account...
+                    </>
+                  ) : (
+                    "Continue"
+                  )}
+                </Button>
+                <FieldDescription className="text-center">
+                  Already have an account?{" "}
+                  <Link
+                    href={`/auth/owner/sign-in${redirectPath ? `?redirect=${encodeURIComponent(redirectPath)}` : ""}`}
+                    className="underline"
+                  >
+                    Sign in here
+                  </Link>
+                </FieldDescription>
+              </Field>
+            </FieldGroup>
+          </form>
+        </div>
+      </div>
+
+      <div className="relative hidden w-1/2 md:block">
+        <Image
+          src="/hero.jpeg"
+          alt="Luxury Hotel Lobby"
+          fill
+          className="h-full w-full object-cover"
+        />
+        <div className="absolute inset-0 bg-linear-to-t from-black/20 to-transparent" />
       </div>
     </div>
   );
 }
-

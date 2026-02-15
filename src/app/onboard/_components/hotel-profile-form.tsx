@@ -16,6 +16,8 @@ import {
 } from "~/_components/ui/form";
 import { ArrowRight, Save } from "lucide-react";
 import { toast } from "sonner";
+import { authClient } from "~/server/better-auth/client";
+import { useEffect } from "react";
 
 const hotelProfileSchema = z.object({
   name: z.string().min(2, "Hotel name must be at least 2 characters"),
@@ -32,6 +34,7 @@ type HotelProfileValues = z.infer<typeof hotelProfileSchema>;
 
 export function HotelProfileForm() {
   const { hotelData, updateHotelData, nextStep } = useOnboardingStore();
+  const { data: session } = authClient.useSession();
 
   const form = useForm<HotelProfileValues>({
     resolver: zodResolver(hotelProfileSchema),
@@ -44,6 +47,18 @@ export function HotelProfileForm() {
       address: hotelData.address,
     },
   });
+
+  useEffect(() => {
+    if (!session?.user) return;
+    // Only pre-fill if data is empty to avoid overwriting user input
+    if (hotelData.email === "" && session.user.email) {
+      const newData = { ...hotelData, email: session.user.email };
+      // If the hotel name is empty, we act as if we might use user name, 
+      // but usually hotel name is different. Let's just prefill email.
+      updateHotelData(newData);
+      form.setValue("email", session.user.email);
+    }
+  }, [session, hotelData, updateHotelData, form]);
 
   function onSubmit(values: HotelProfileValues) {
     updateHotelData(values);

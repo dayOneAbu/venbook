@@ -92,12 +92,7 @@ export function CustomerSignUpPage() {
           <CardContent>
             <form
               onSubmit={handleSubmit((values) =>
-                signUp.mutate({
-                  name: values.name,
-                  email: values.email,
-                  password: values.password,
-                  role: "CUSTOMER",
-                }),
+                signUp.mutate(values),
               )}
             >
               <FieldGroup>

@@ -47,15 +47,21 @@ export function CustomerSignInPage() {
       }
 
       let nextPath = "/venues";
+      const userRole = data.user.role;
+      const isOwner = userRole === "HOTEL_ADMIN" || userRole === "SUPER_ADMIN";
+      const isSuperAdmin = userRole === "SUPER_ADMIN";
 
-      if (data.user && !data.user.isOnboarded) {
+      if (data.user && !data.user.isOnboarded && !isSuperAdmin) {
+        const roleParam = isOwner ? "owner" : "customer";
         if (redirectPath && !redirectPath.startsWith("/onboard")) {
-          nextPath = `/onboard?role=customer&next=${encodeURIComponent(redirectPath)}`;
+          nextPath = `/onboard?role=${roleParam}&next=${encodeURIComponent(redirectPath)}`;
         } else {
-          nextPath = "/onboard?role=customer";
+          nextPath = `/onboard?role=${roleParam}`;
         }
-      } else if (redirectPath) {
+      } else if (redirectPath && (!isSuperAdmin || !redirectPath.startsWith("/onboard"))) {
         nextPath = redirectPath;
+      } else if (isOwner) {
+        nextPath = "/dashboard/tenant";
       }
 
       router.replace(nextPath);

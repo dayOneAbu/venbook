@@ -1,16 +1,12 @@
 import "dotenv/config";
 import pg from "pg";
 const { Pool } = pg;
-import { parse } from "pg-connection-string";
 
 const connectionString = `${process.env.DATABASE_URL}`;
-const config = parse(connectionString);
+
 const pool = new Pool({
-  user: config.user,
-  password: config.password,
-  host: config.host ?? "localhost",
-  port: Number(config.port) ?? 5432,
-  database: config.database ?? "venbook",
+  connectionString,
+  ssl: true, 
 });
 
 const HOTEL_THEMES = [
