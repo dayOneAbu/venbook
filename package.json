@@ -18,7 +18,8 @@
     "lint:fix": "next lint --fix",
     "preview": "next build && next start",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "postinstall": "prisma generate"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -53,13 +54,9 @@
     "framer-motion": "^12.29.2",
     "gsap": "^3.13.0",
     "lucide-react": "^0.563.0",
-    "motion": "^12.23.12",
     "next": "^15.2.3",
     "next-themes": "^0.4.6",
     "pg": "8.17.1",
-    "postgres": "^3.4.4",
-    "prisma": "^7.2.0",
-    "radix-ui": "^1.4.3",
     "react": "^19.0.0",
     "react-day-picker": "^9.13.2",
     "react-dom": "^19.0.0",
@@ -83,6 +80,7 @@
     "postcss": "^8.5.3",
     "prettier": "^3.5.3",
     "prettier-plugin-tailwindcss": "^0.6.11",
+    "prisma": "^7.2.0",
     "shadcn": "^3.8.2",
     "tailwindcss": "^4.0.15",
     "tsx": "^4.19.2",
