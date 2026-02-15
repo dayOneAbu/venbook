@@ -1,18 +1,23 @@
-import { env } from "~/env";
-import { PrismaClient } from "../../generated/prisma";
-import { Pool } from "@neondatabase/serverless";
+import "dotenv/config";
+import { PrismaClient } from "~/generated/prisma";
 import { PrismaNeon } from "@prisma/adapter-neon";
+import { env } from "~/env";
 
-const pool = new Pool({ connectionString: env.DATABASE_URL });
-// eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
-const adapter = new PrismaNeon(pool as any);
+const createPrismaClient = () => {
+  const connectionString = process.env.DATABASE_URL ?? env.DATABASE_URL;
 
-const createPrismaClient = () =>
-  new PrismaClient({
+  if (!connectionString) {
+    throw new Error("❌ DATABASE_URL is missing!");
+  }
+
+  // Official Neon Recommended Setup
+  const adapter = new PrismaNeon({ connectionString });
+
+  return new PrismaClient({
     adapter,
-    log:
-      env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
+    log: env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
   });
+};
 
 const globalForPrisma = globalThis as unknown as {
   prisma: ReturnType<typeof createPrismaClient> | undefined;
