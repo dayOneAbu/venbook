@@ -31,14 +31,16 @@ import { format } from "date-fns";
 import { cn } from "~/lib/utils";
 import { toast } from "sonner";
 import { authClient } from "~/server/better-auth/client";
+import type { DateRange } from "react-day-picker";
 
 const bookingRequestSchema = z.object({
   name: z.string().min(2, "Name is required"),
   email: z.string().email("Invalid email address"),
   phone: z.string().min(9, "Phone number is required"),
-  date: z.date({
-    required_error: "Date is required",
-  }),
+  dateRange: z.object({
+    from: z.date(),
+    to: z.date().optional(),
+  }, { required_error: "Date range is required" }),
   guestCount: z.string().min(1, "Guest count is required"),
   message: z.string().optional(),
 });
@@ -64,6 +66,7 @@ export function BookingRequestModal({ venueId, venueName, trigger }: BookingRequ
       phone: "",
       guestCount: "",
       message: "",
+      // dateRange is undefined by default
     },
   });
 
@@ -166,10 +169,10 @@ export function BookingRequestModal({ venueId, venueName, trigger }: BookingRequ
 
             <FormField
               control={form.control}
-              name="date"
+              name="dateRange"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
-                  <FormLabel>Preferred Date</FormLabel>
+                  <FormLabel>Preferred Dates</FormLabel>
                   <Popover>
                     <PopoverTrigger asChild>
                       <FormControl>
@@ -180,10 +183,17 @@ export function BookingRequestModal({ venueId, venueName, trigger }: BookingRequ
                             !field.value && "text-muted-foreground"
                           )}
                         >
-                          {field.value ? (
-                            format(field.value, "PPP")
+                          {field.value?.from ? (
+                            field.value.to ? (
+                              <>
+                                {format(field.value.from, "LLL dd, y")} -{" "}
+                                {format(field.value.to, "LLL dd, y")}
+                              </>
+                            ) : (
+                              format(field.value.from, "LLL dd, y")
+                            )
                           ) : (
-                            <span>Pick a date</span>
+                            <span>Pick a date range</span>
                           )}
                           <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                         </Button>
@@ -191,12 +201,13 @@ export function BookingRequestModal({ venueId, venueName, trigger }: BookingRequ
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
                       <Calendar
-                        mode="single"
-                        selected={field.value}
+                        mode="range"
+                        selected={field.value as DateRange}
                         onSelect={field.onChange}
                         disabled={(date: Date) =>
                           date < new Date() || date < new Date("1900-01-01")
                         }
+                        numberOfMonths={2}
                         initialFocus
                       />
                     </PopoverContent>

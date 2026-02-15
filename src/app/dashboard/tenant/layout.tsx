@@ -27,9 +27,15 @@ export default async function DashboardLayout({
   }
 
   if (session.user.role !== "SUPER_ADMIN") {
-    if (!session.user.isOnboarded || !session.user.hotelId) {
+    // If they have a hotelId, they are associated with a tenant and can access.
+    // We strictly redirect only if they have NO hotelId.
+    if (!session.user.hotelId) {
       redirect("/onboard");
     }
+    
+    // Optional: If you want to force them to "finish" onboarding steps even with hotelId,
+    // you'd need a separate "complete-profile" flow, not the "create hotel" flow.
+    // For now, hotelId is the source of truth for "has access".
   }
 
   return (

@@ -37,12 +37,26 @@ function OnboardingContent() {
       return;
     }
 
+    // Unified redirection guard
+    const userRole = session.user.role!;
+    const isOwnerRole = ["HOTEL_ADMIN", "SALES", "OPERATIONS", "FINANCE"].includes(userRole);
+    const isCustomerRole = userRole === "CUSTOMER";
+
     if (session.user.isOnboarded) {
-      if (session.user.role === "HOTEL_ADMIN") {
-        router.replace("/admin");
-      } else if (session.user.role === "CUSTOMER") {
-        router.replace("/venues");
-      }
+      if (isOwnerRole) router.replace("/dashboard/tenant");
+      else if (isCustomerRole) router.replace("/venues");
+      return;
+    }
+
+    // Backup guards based on existing profile data
+    if (isOwnerRole && session.user.hotelId) {
+      router.replace("/dashboard/tenant");
+      return;
+    }
+
+    if (isCustomerRole && session.user.phone) {
+      router.replace("/venues");
+      return;
     }
   }, [session, isPending, router]);
 

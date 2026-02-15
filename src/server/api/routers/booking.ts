@@ -21,6 +21,23 @@ export const bookingRouter = createTRPCRouter({
         });
     }),
 
+    getMyBookings: protectedProcedure.query(({ ctx }) => {
+        return ctx.db.booking.findMany({
+            where: { createdById: ctx.session.user.id },
+            orderBy: { createdAt: "desc" },
+            include: {
+                venue: {
+                    include: {
+                        images: { take: 1 },
+                    }
+                },
+                hotel: {
+                    select: { name: true, city: true }
+                }
+            },
+        });
+    }),
+
     create: protectedProcedure
         .input(
             z.object({
